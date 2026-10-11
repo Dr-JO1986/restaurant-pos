@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ restaurant.name }} - สั่งสินค้าออนไลน์</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Prompt', sans-serif; }</style>
+</head>
+<body class="bg-gray-50 text-gray-800 pb-28">
+
+    <!-- Header ร้าน & ป้ายแสดงตำแหน่งโต๊ะของลูกค้า -->
+    <header class="bg-indigo-600 text-white shadow-md sticky top-0 z-30">
+        <div class="max-w-3xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div>
+                <h1 class="text-lg font-bold">🏪 {{ restaurant.name }}</h1>
+                <p class="text-xs opacity-90">{{ restaurant.get_restaurant_type_display }}</p>
+            </div>
+            
+            {% if table_number %}
+            <div class="bg-white text-indigo-700 px-3 py-1.5 rounded-xl text-xs font-bold shadow-sm flex items-center gap-1.5">
+                <span>📍</span>
+                <span>กำลังสั่งให้: {{ table_number }}</span>
+            </div>
+            {% else %}
+            <span class="bg-indigo-500 text-xs px-3 py-1 rounded-full font-medium">✨ สั่งสินค้าออนไลน์</span>
+            {% endif %}
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="max-w-3xl mx-auto px-4 py-6">
+        
+        <!-- Category Filter Tabs -->
+        <div class="flex gap-2 overflow-x-auto pb-3 mb-6 scrollbar-none">
+            <a href="?#" class="px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap {% if not selected_category %}bg-indigo-600 text-white shadow{% else %}bg-white text-gray-600 border border-gray-200{% endif %}">
+                ทั้งหมด
+            </a>
+            {% for cat in categories %}
+            <a href="?category={{ cat.id }}" class="px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap {% if selected_category == cat.id|stringformat:'s' %}bg-indigo-600 text-white shadow{% else %}bg-white text-gray-600 border border-gray-200{% endif %}">
+                {{ cat.name }}
+            </a>
+            {% endfor %}
+        </div>
+
+        <!-- 1. ส่วนแสดงรายการที่ลูกค้าสั่งไปแล้ว -->
+        {% if active_orders %}
+        <div class="bg-blue-50 border border-blue-200 p-4 rounded-2xl mb-6">
+            <div class="flex justify-between items-center mb-2">
+                <h3 class="font-bold text-blue-800 text-sm flex items-center gap-2">
+                    <span>📋</span> รายการที่สั่งไปแล้วของโต๊ะ {{ table_number }}
+                </h3>
+                <div class="flex items-center gap-1.5">
+                    <!-- ปุ่มกดอัปเดตสถานะด้วยตัวเอง -->
+                    <button onclick="location.reload();" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-2.5 py-1.5 rounded-xl text-xs shadow transition flex items-center gap-1">
+                        🔄 อัปเดตสถานะ
+                    </button>
+                    <a href="{% url 'table_bill_summary' restaurant.slug table_number %}" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-3 py-1.5 rounded-xl text-xs shadow transition">
+                        📜 ดูบิลรวม
+                    </a>
+                </div>
+            </div>
+            
+            <div class="space-y-3" id="activeOrdersContainer">
+                {% for ao in active_orders %}
+                <div class="bg-white p-3 rounded-xl border border-blue-100 text-xs shadow-sm order-card" data-order-id="{{ ao.id }}">
+                    <div class="flex justify-between font-bold text-gray-700 mb-2 border-b pb-1">
+                        <span>ออร์เดอร์ #{{ ao.id }}</span>
+                        <span class="text-[11px] text-gray-400">{{ ao.created_at|date:"H:i น." }}</span>
+                    </div>
+                    
+                    <ul class="space-y-2">
+                        {% for item in ao.items.all %}
+                        <li class="flex flex-col bg-gray-50 p-2.5 rounded-lg border gap-2">
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <span class="font-bold text-gray-800">{{ item.menu_item.name }}</span> 
+                                    <span class="text-indigo-600 font-semibold">จำนวน: {{ item.quantity }}</span> (฿{{ item.price }})
+                                    <div class="mt-1">
+                                        <!-- ป้ายแสดงสถานะ (แสดงผลถูกต้อง ไม่ซ้ำซ้อน) -->
+                                        <span id="status-badge-{{ item.id }}" class="px-2 py-0.5 rounded-full text-[10px] font-semibold
+                                            {% if item.status == 'pending' %} bg-yellow-100 text-yellow-800 
+                                            {% elif item.status == 'cooking' %} bg-blue-100 text-blue-800 
+                                            {% elif item.status == 'completed' %} bg-green-100 text-green-800 
+                                            {% else %} bg-red-100 text-red-800 line-through {% endif %}">
+                                            {{ item.get_status_display }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- หากสถานะยังเป็น pending แสดงปุ่มแก้ไขจำนวน และยกเลิก -->
+                            {% if item.status == 'pending' %}
+                            <div class="flex items-center justify-between pt-2 border-t border-gray-200">
+                                <span class="text-[11px] text-gray-500">ต้องการเปลี่ยนจำนวนหรือยกเลิก?</span>
+                                <div class="flex items-center gap-1.5">
+                                    <button type="button" onclick="toggleEditBox('edit-box-{{ item.id }}')" class="bg-amber-50 hover:bg-amber-100 text-amber-700 font-medium px-2.5 py-1 rounded text-[11px] transition shadow-sm">
+                                        ✏️ แก้ไขจำนวน
+                                    </button>
+                                    <a href="{% url 'cancel_order_item_customer' restaurant.slug item.id %}" onclick="return confirm('ยืนยันการยกเลิกเมนู {{ item.menu_item.name }}?');" class="bg-red-50 hover:bg-red-100 text-red-600 font-medium px-2.5 py-1 rounded text-[11px] transition">
+                                        ❌ ยกเลิก
+                                    </a>
+                                </div>
+                            </div>
+
+                            <!-- กล่องบล็อกแก้ไขจำนวน -->
+                            <div id="edit-box-{{ item.id }}" class="hidden bg-indigo-50/70 p-2.5 rounded-lg border border-indigo-100 mt-1">
+                                <form action="{% url 'update_order_item_quantity_customer' restaurant.slug item.id %}" method="POST" class="flex items-center justify-between gap-2">
+                                    {% csrf_token %}
+                                    <span class="text-[11px] font-bold text-indigo-900">ระบุจำนวนใหม่:</span>
+                                    <div class="flex items-center gap-1">
+                                        <input type="number" name="quantity" value="{{ item.quantity }}" min="1" max="99" class="w-16 text-center border rounded text-xs py-1 bg-white focus:outline-none font-bold text-gray-800 shadow-sm">
+                                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-3 py-1 rounded text-[11px] transition shadow-sm">
+                                            ✓ ยืนยันการแก้
+                                        </button>
+                                        <button type="button" onclick="toggleEditBox('edit-box-{{ item.id }}')" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-2 py-1 rounded text-[11px] transition">
+                                            ปิด
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                            {% endif %}
+                        </li>
+                        {% endfor %}
+                    </ul>
+
+                    <div class="border-t mt-3 pt-2 flex justify-between font-bold text-indigo-600">
+                        <span>รวมออร์เดอร์นี้:</span>
+                        <span>฿{{ ao.total_price }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Script สำหรับเปิด/ปิดกล่องบล็อกแก้ไขจำนวน -->
+        <script>
+            function toggleEditBox(boxId) {
+                const box = document.getElementById(boxId);
+                if (box.classList.contains('hidden')) {
+                    box.classList.remove('hidden');
+                } else {
+                    box.classList.add('hidden');
+                }
+            }
+        </script>
+
+        <!-- 2. ฟอร์มหลักสำหรับการสั่งสินค้าใหม่ (Menu List Form) -->
+        <form action="{% url 'place_order_table' restaurant.slug table_number %}" method="POST" id="orderForm">
+        {% csrf_token %}
+            
+            <!-- Customer Info Box -->
+            <div class="bg-gradient-to-r from-indigo-50 to-blue-50 p-5 rounded-2xl shadow-sm border border-indigo-100 mb-8 mt-2">
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="text-indigo-600 text-lg">👤</span>
+                    <label class="block text-sm font-bold text-indigo-900">ข้อมูลผู้สั่งสำหรับโต๊ะนี้</label>
+                </div>
+                <p class="text-xs text-gray-500 mb-3">กรุณาระบุชื่อเล่นหรือชื่อของคุณ เพื่อให้พนักงานจัดเตรียมและเสิร์ฟได้อย่างถูกต้องครับ</p>
+                
+                <div class="relative">
+                    <input type="text" name="customer_name" placeholder="ระบุชื่อของคุณ (เช่น คุณโจ้)" class="w-full px-4 py-3 bg-white border border-indigo-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm transition">
+                </div>
+            </div>
+
+            <!-- Menu Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {% for item in menu_items %}
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex gap-4 items-center">
+                    {% if item.image %}
+                    <img src="{{ item.image.url }}" alt="{{ item.name }}" class="w-24 h-24 object-cover rounded-xl">
+                    {% else %}
+                    <div class="w-24 h-24 bg-gray-100 rounded-xl flex items-center justify-center text-xs text-gray-400">ไม่มีรูป</div>
+                    {% endif %}
+                    
+                    <div class="flex-1">
+                        <span class="text-[10px] text-indigo-600 font-semibold bg-indigo-50 px-2 py-0.5 rounded">{{ item.category.name }}</span>
+                        <h3 class="font-bold text-gray-800 text-sm mt-1">{{ item.name }}</h3>
+                        <p class="text-indigo-600 font-bold text-sm mt-0.5">฿{{ item.price }}</p>
+                        
+                        <input type="hidden" name="menu_item_id" value="{{ item.id }}">
+                        
+                        <!-- Quantity Controller (ใส่ฟังก์ชันบวก-ลบกลับมาครบถ้วน) -->
+                        <div class="flex items-center gap-3 mt-3">
+                            <button type="button" onclick="decrement(this)" class="w-7 h-7 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-bold text-sm flex items-center justify-center transition">-</button>
+                            <input type="number" name="quantity" value="0" min="0" class="w-10 text-center font-bold text-sm bg-transparent border-0 focus:outline-none qty-input" readonly>
+                            <button type="button" onclick="increment(this)" class="w-7 h-7 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-lg font-bold text-sm flex items-center justify-center transition">+</button>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <p class="text-gray-500 col-span-2 text-center py-12">ยังไม่มีสินค้าพร้อมให้บริการในขณะนี้</p>
+                {% endfor %}
+            </div>
+
+            <!-- Floating Cart Bar -->
+            <div id="cartBar" class="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg p-4 z-40 transform translate-y-full transition-transform duration-300">
+                <div class="max-w-3xl mx-auto flex justify-between items-center">
+                    <div>
+                        <p class="text-xs text-gray-500">ยอดรวมทั้งหมด</p>
+                        <p class="text-lg font-bold text-indigo-600">฿<span id="totalPrice">0.00</span></p>
+                    </div>
+                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-xl shadow-md transition text-sm">
+                        🛒 ยืนยันการสั่งซื้อ
+                    </button>
+                </div>
+            </div>
+        </form>
+    </main>
+
+    <!-- JavaScript for Cart Logic & Auto-Refresh Status -->
+            <script>
+                const itemPrices = {
+                    {% for item in menu_items %}
+                    "{{ item.id }}": parseFloat("{{ item.price }}"),
+                    {% endfor %}
+                };
+
+                function increment(btn) {
+                    const input = btn.previousElementSibling;
+                    input.value = parseInt(input.value) + 1;
+                    updateCart();
+                }
+
+                function decrement(btn) {
+                    const input = btn.nextElementSibling;
+                    let val = parseInt(input.value);
+                    if (val > 0) {
+                        input.value = val - 1;
+                        updateCart();
+                    }
+                }
+
+                function updateCart() {
+                    let total = 0;
+                    let totalQty = 0;
+                    const qtyInputs = document.querySelectorAll('.qty-input');
+                    
+                    qtyInputs.forEach(input => {
+                        const qty = parseInt(input.value);
+                        if (qty > 0) {
+                            const card = input.closest('.flex-1');
+                            const idInput = card.querySelector('input[name="menu_item_id"]');
+                            if (idInput && itemPrices[idInput.value]) {
+                                total += itemPrices[idInput.value] * qty;
+                                totalQty += qty;
+                            }
+                        }
+                    });
+
+                    document.getElementById('totalPrice').innerText = total.toFixed(2);
+                    const cartBar = document.getElementById('cartBar');
+                    
+                    if (totalQty > 0) {
+                        cartBar.classList.remove('translate-y-full');
+                    } else {
+                        cartBar.classList.add('translate-y-full');
+                    }
+                }
+
+                // ตัวแปรควบคุมการรีเฟรชอัตโนมัติ
+                let isEditing = false;
+                let refreshTimer = null;
+
+                // ฟังก์ชันเปิด/ปิดกล่องแก้ไข พร้อมหยุดรีเฟรชชั่วคราว
+                function toggleEditBox(boxId) {
+                    const box = document.getElementById(boxId);
+                    if (box.classList.contains('hidden')) {
+                        box.classList.remove('hidden');
+                        isEditing = true; // ล็อคไว้ ไม่ให้รีเฟรชหน้าจอขณะกำลังแก้ไข
+                    } else {
+                        box.classList.add('hidden');
+                        isEditing = false; // ปลดล็อคให้รีเฟรชต่อได้เมื่อปิดกล่อง
+                    }
+                }
+
+            </script>
+</body>
+</html>

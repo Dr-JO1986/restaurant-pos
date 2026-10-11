@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบจัดการร้าน - {{ restaurant.name }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Prompt', sans-serif; }</style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+    <!-- Navigation Bar -->
+    <nav class="bg-indigo-600 text-white shadow-md">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div>
+                <h1 class="text-xl font-bold">🏪 {{ restaurant.name }} 
+                    <span class="text-xs bg-indigo-500 px-2 py-1 rounded ml-2">{{ restaurant.get_restaurant_type_display }}</span>
+                </h1>
+            </div>
+                <div class="flex items-center gap-3">
+                    <!-- ใน Navbar ของ dashboard.html เพิ่มปุ่มนี้ร่วมกับปุ่มดูออร์เดอร์ -->
+                    <a href="{% url 'merchant_tables' restaurant.slug %}" class="bg-blue-500 hover:bg-blue-600 text-white text-xs px-3 py-1.5 rounded-lg transition font-medium shadow-sm">
+                        🪑 จัดการโต๊ะ & QR Code
+                    </a>
+                    <a href="{% url 'merchant_orders' restaurant.slug %}" class="bg-emerald-500 hover:bg-emerald-600 text-white text-xs px-3 py-1.5 rounded-lg transition font-medium shadow-sm">
+                    🛎️ ดูออร์เดอร์ลูกค้า (Kitchen)
+                    </a>
+              </div>
+            <div class="flex items-center gap-4">
+                <span class="text-sm opacity-90">ผู้ใช้งาน: {{ request.user.username }}</span>
+                <a href="/logout/" class="bg-red-500 hover:bg-red-600 text-white text-xs px-3 py-1.5 rounded-lg transition duration-200">
+                    ออกจากระบบ
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 py-8 grid grid-cols-1 md:grid-cols-3 gap-8">
+        <!-- Left Panel: Forms -->
+            <div class="space-y-6">
+                <!-- Add Category Form -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h2 class="text-lg font-semibold mb-3 text-indigo-600 border-b pb-2">📁 เพิ่มหมวดหมู่อาหาร/สินค้า</h2>
+                    <form method="POST" class="space-y-3">
+                    {% csrf_token %}
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">ชื่อหมวดหมู่</label>
+                        <!-- เปลี่ยนจาก name="name" เป็น name="category_name" ตรงนี้ครับ -->
+                        <input type="text" name="category_name" placeholder="เช่น เครื่องดื่ม, ของหวาน, เค้ก" required class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <button type="submit" name="add_category" class="w-full bg-gray-800 hover:bg-gray-900 text-white font-medium py-2 px-4 rounded-lg transition duration-200 text-sm">
+                        + บันทึกหมวดหมู่ใหม่
+                    </button>
+                </form>
+                    
+                    <!-- List Categories -->
+                    <div class="mt-4 space-y-2">
+                        {% for cat in categories %}
+                        <div class="flex justify-between items-center bg-indigo-50 px-3 py-1.5 rounded-lg">
+                            <span class="text-xs text-indigo-700 font-medium">{{ cat.name }}</span>
+                            <div class="flex items-center gap-2 text-xs">
+                                <!-- ปุ่มแก้ไขหมวดหมู่ -->
+                                <a href="/store/{{ restaurant.slug }}/category/{{ cat.id }}/edit/" class="text-indigo-600 hover:underline">✏️ แก้ไข</a>
+                                <span class="text-gray-300">|</span>
+                                <!-- ปุ่มลบหมวดหมู่ -->
+                                <a href="/store/{{ restaurant.slug }}/category/{{ cat.id }}/delete/" onclick="return confirm('การลบหมวดหมู่จะทำให้เมนูอาหารในหมวดหมู่นี้ถูกลบไปด้วย คุณต้องการลบใช่หรือไม่?');" class="text-red-500 hover:underline">🗑️ ลบ</a>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <span class="text-xs text-gray-400">ยังไม่มีหมวดหมู่</span>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Add Menu Form -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h2 class="text-lg font-semibold mb-3 text-indigo-600 border-b pb-2">➕ เพิ่มเมนูสินค้าใหม่</h2>
+                    <form method="POST" enctype="multipart/form-data" class="space-y-3">
+                        {% csrf_token %}
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">หมวดหมู่</label>
+                            <select name="category" required class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                <option value="">-- เลือกหมวดหมู่ --</option>
+                                {% for cat in categories %}
+                                <option value="{{ cat.id }}">{{ cat.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">ชื่อเมนูสินค้า</label>
+                            <input type="text" name="name" placeholder="เช่น โกโก้เย็น, เค้กส้ม" required class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">ราคา (บาท)</label>
+                            <input type="number" step="0.01" name="price" placeholder="0.00" required class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">คำอธิบาย (ถ้ามี)</label>
+                            <textarea name="description" rows="2" placeholder="รายละเอียดสินค้า" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">รูปภาพสินค้า</label>
+                            <input type="file" name="image" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" name="is_available" id="is_available" checked class="w-4 h-4 text-indigo-600 rounded">
+                            <label for="is_available" class="text-sm font-medium text-gray-700">เปิดขาย / พร้อมเสิร์ฟ</label>
+                        </div>
+                        <button type="submit" name="add_menu" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200 shadow-md">
+                            บันทึกเมนูสินค้า
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+        <!-- Right Panel: Menu List -->
+        <div class="md:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-gray-100 h-fit">
+            <h2 class="text-lg font-semibold mb-4 text-indigo-600 border-b pb-2">📋 รายการเมนูทั้งหมดในร้าน</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {% for item in menu_items %}
+                    <div class="border rounded-lg p-4 flex gap-4 items-center bg-gray-50 relative">
+                        {% if item.image %}
+                        <img src="{{ item.image.url }}" alt="{{ item.name }}" class="w-20 h-20 object-cover rounded-lg">
+                        {% else %}
+                        <div class="w-20 h-20 bg-gray-200 rounded-lg flex items-center justify-center text-xs text-gray-400">ไม่มีรูป</div>
+                        {% endif %}
+                        <div>
+                            <span class="text-xs text-indigo-600 font-semibold bg-indigo-50 px-2 py-0.5 rounded">{{ item.category.name }}</span>
+                            <h3 class="font-bold text-gray-800 mt-1">{{ item.name }}</h3>
+                            <p class="text-sm text-gray-600">฿{{ item.price }}</p>
+            
+                        <!-- ป้ายสถานะสินค้า -->
+                            <div class="mt-1 flex items-center gap-2">
+                                {% if item.is_available %}
+                                <span class="text-xs px-2 py-0.5 rounded bg-green-100 text-green-700 font-medium">✨ พร้อมเสิร์ฟ</span>
+                                {% else %}
+                                <span class="text-xs px-2 py-0.5 rounded bg-red-100 text-red-700 font-medium">🚫 สินค้าหมด</span>
+                                {% endif %}
+                            </div>
+
+                        <!-- ปุ่มแก้ไข / ลบ -->
+                        <div class="mt-3 flex gap-2 text-xs">
+                            <a href="/store/{{ restaurant.slug }}/manage/menu/{{ item.id }}/edit/" class="text-indigo-600 hover:underline font-medium">✏️ แก้ไข</a>
+                            <span class="text-gray-300">|</span>
+                            <a href="/store/{{ restaurant.slug }}/manage/menu/{{ item.id }}/delete/" onclick="return confirm('คุณต้องการลบเมนูนี้ใช่หรือไม่?');" class="text-red-500 hover:underline font-medium">🗑️ ลบ</a>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <p class="text-gray-500 col-span-2 text-center py-8">ยังไม่มีเมนูสินค้าในระบบ ลองเพิ่มหมวดหมู่และเมนูทางด้านซ้ายได้เลยครับ</p>
+                {% endfor %}
+            </div>
+        </div>
+    </main>
+</body>
+</html>

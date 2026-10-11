@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>สถานะคำสั่งซื้อ - {{ restaurant.name }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Prompt', sans-serif; }</style>
+</head>
+<body class="bg-gray-50 text-gray-800 flex items-center justify-center min-h-screen p-4">
+
+    <div class="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 max-w-md w-full text-center">
+        <div class="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">
+            ✓
+        </div>
+        <h1 class="text-xl font-bold text-gray-800 mb-1">ส่งออร์เดอร์สำเร็จแล้วครับ!</h1>
+        
+        <!-- แสดงตำแหน่งโต๊ะที่สั่ง -->
+        <div class="inline-block bg-indigo-50 text-indigo-700 px-4 py-1.5 rounded-full text-xs font-bold mb-4">
+            📍 ตำแหน่งบริการ: {{ table_number }}
+        </div>
+
+        <!-- Live Status Box -->
+        <div id="statusContainer" class="mb-6 p-4 rounded-xl border transition-all duration-300
+            {% if order.status == 'pending' %} bg-yellow-50 border-yellow-200 text-yellow-800
+            {% elif order.status == 'cooking' %} bg-blue-50 border-blue-200 text-blue-800
+            {% elif order.status == 'completed' %} bg-green-50 border-green-200 text-green-800
+            {% else %} bg-red-50 border-red-200 text-red-800 {% endif %}">
+            <p class="text-xs font-semibold uppercase tracking-wider mb-1">สถานะออร์เดอร์ปัจจุบัน</p>
+            <p id="statusText" class="text-lg font-bold">{{ order.get_status_display }}</p>
+        </div>
+
+        <div class="bg-gray-50 p-4 rounded-xl text-left text-sm space-y-2 mb-6 border">
+            <div class="flex justify-between">
+                <span class="text-gray-500">หมายเลขคำสั่งซื้อ:</span>
+                <span class="font-bold">#{{ order.id }}</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-gray-500">โต๊ะ / โซน:</span>
+                <span class="font-bold text-indigo-600">{{ order.table_number }}</span>
+            </div>
+            {% if order.customer_name %}
+            <div class="flex justify-between">
+                <span class="text-gray-500">ชื่อผู้สั่ง:</span>
+                <span class="font-medium">{{ order.customer_name }}</span>
+            </div>
+            {% endif %}
+            <div class="border-t pt-2 mt-2">
+                <p class="text-xs text-gray-500 mb-1 font-semibold">รายการอาหาร:</p>
+                <ul class="space-y-1">
+                    {% for item in order.items.all %}
+                    <li class="flex justify-between text-xs">
+                        <span>{{ item.menu_item.name }} x {{ item.quantity }}</span>
+                        <span>฿{{ item.price }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div class="border-t pt-2 mt-2 flex justify-between font-bold text-base">
+                <span>ยอดรวมทั้งสิ้น:</span>
+                <span class="text-indigo-600">฿{{ order.total_price }}</span>
+            </div>
+        </div>
+
+        <!-- ปุ่มกลับไปสั่งอาหารเพิ่มของโต๊ะเดิม -->
+        <a href="{% url 'customer_storefront_table' restaurant.slug table_number %}" class="block w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 rounded-xl transition duration-200 text-sm shadow-md">
+            ➕ สั่งอาหารเพิ่ม (โต๊ะ {{ table_number }})
+        </a>
+    </div>
+
+    <!-- AJAX Real-time Script -->
+    <script>
+        const orderId = "{{ order.id }}";
+        const statusUrl = "{% url 'api_order_status' restaurant.slug order.id %}";
+
+        function checkOrderStatus() {
+            fetch(statusUrl)
+                .then(response => response.json())
+                .then(data => {
+                    const statusText = document.getElementById('statusText');
+                    const container = document.getElementById('statusContainer');
+                    
+                    statusText.innerText = data.status_display;
+
+                    container.className = "mb-6 p-4 rounded-xl border transition-all duration-300";
+                    if (data.status === 'pending') {
+                        container.classList.add('bg-yellow-50', 'border-yellow-200', 'text-yellow-800');
+                    } else if (data.status === 'cooking') {
+                        container.classList.add('bg-blue-50', 'border-blue-200', 'text-blue-800');
+                    } else if (data.status === 'completed') {
+                        container.classList.add('bg-green-50', 'border-green-200', 'text-green-800');
+                    } else {
+                        container.classList.add('bg-red-50', 'border-red-200', 'text-red-800');
+                    }
+                })
+                .catch(error => console.error('Error fetching order status:', error));
+        }
+
+        setInterval(checkOrderStatus, 5000);
+    </script>
+</body>
+</html>

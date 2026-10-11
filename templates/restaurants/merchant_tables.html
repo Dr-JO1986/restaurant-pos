@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>จัดการโต๊ะและ QR Code - {{ restaurant.name }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Prompt', sans-serif; }</style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+    <!-- Navigation Bar -->
+    <nav class="bg-indigo-600 text-white shadow-md">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+            <h1 class="text-xl font-bold">🏪 {{ restaurant.name }} (จัดการโต๊ะ & QR Code)</h1>
+            <div class="flex items-center gap-3">
+                <a href="{% url 'merchant_dashboard' restaurant.slug %}" class="bg-indigo-500 hover:bg-indigo-700 text-white text-xs px-3 py-1.5 rounded-lg transition">
+                    ⚙️ จัดการเมนู
+                </a>
+                <a href="{% url 'merchant_orders' restaurant.slug %}" class="bg-emerald-500 hover:bg-emerald-600 text-white text-xs px-3 py-1.5 rounded-lg transition">
+                    🛎️ ดูออร์เดอร์ครัว
+                </a>
+                <a href="/logout/" class="bg-red-500 hover:bg-red-600 text-white text-xs px-3 py-1.5 rounded-lg transition">
+                    ออกจากระบบ
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 py-8 grid grid-cols-1 md:grid-cols-3 gap-8">
+        
+        <!-- Left: Add Table Form -->
+        <div class="bg-white p-6 rounded-xl shadow-sm border h-fit">
+            <h2 class="text-lg font-semibold mb-3 text-indigo-600 border-b pb-2">🪑 เพิ่มโต๊ะ / โซน / จุดบริการใหม่</h2>
+            <form method="POST" class="space-y-4">
+                {% csrf_token %}
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">ชื่อโต๊ะหรือโซน</label>
+                    <input type="text" name="table_name" placeholder="เช่น โต๊ะ 1, กระท่อมริมน้ำ, โซน VIP, สั่งกลับบ้าน" required class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                    <p class="text-xs text-gray-400 mt-1">ตั้งชื่อได้อิสระตามรูปแบบของร้านคุณเลยครับ</p>
+                </div>
+                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-lg transition text-sm shadow-md">
+                    + สร้างโต๊ะ / QR Code
+                </button>
+            </form>
+        </div>
+
+        <!-- Right: Table List & QR Codes -->
+        <div class="md:col-span-2 bg-white p-6 rounded-xl shadow-sm border">
+            <h2 class="text-lg font-semibold mb-4 text-indigo-600 border-b pb-2">📱 รายการโต๊ะและ QR Code ประจำโต๊ะ</h2>
+            
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                {% for table in tables %}
+                <div class="border rounded-xl p-5 bg-gray-50 flex flex-col items-center text-center shadow-sm relative">
+                    <div class="absolute top-3 right-3">
+                        <a href="{% url 'delete_table' restaurant.slug table.id %}" onclick="return confirm('ต้องการลบโต๊ะนี้ใช่หรือไม่?');" class="text-red-500 hover:text-red-700 text-xs font-semibold">🗑️ ลบ</a>
+                    </div>
+                    
+                    <h3 class="font-bold text-gray-800 text-base mb-3">📍 {{ table.name }}</h3>
+                    
+                    <!-- QR Code Image using Free API -->
+                    <div class="bg-white p-3 rounded-xl shadow-inner border mb-3">
+                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={{ request.scheme }}://{{ request.get_host }}/store/{{ restaurant.slug }}/table/{{ table.name|urlencode }}/" alt="QR Code for {{ table.name }}" class="w-32 h-32 object-contain">
+                    </div>
+
+                    <p class="text-[11px] text-gray-500 mb-3 break-all">ลิงก์: /store/{{ restaurant.slug }}/table/{{ table.name }}/</p>
+
+                    <a href="{% url 'customer_storefront_table' restaurant.slug table.name %}" target="_blank" class="w-full bg-white border border-indigo-600 text-indigo-600 hover:bg-indigo-50 font-medium py-1.5 px-3 rounded-lg text-xs transition">
+                        🔗 เปิดหน้าสั่งอาหารของโต๊ะนี้
+                    </a>
+                </div>
+                {% empty %}
+                <p class="text-gray-400 text-center col-span-2 py-12 text-sm">ยังไม่มีการสร้างโต๊ะหรือโซนในระบบ ลองเพิ่มชื่อโต๊ะทางด้านซ้ายได้เลยครับ</p>
+                {% endfor %}
+            </div>
+        </div>
+    </main>
+
+</body>
+</html>

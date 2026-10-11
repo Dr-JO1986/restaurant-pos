@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>จัดการสถานะโต๊ะ {{ table_number }} - {{ restaurant.name }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Prompt', sans-serif; }</style>
+</head>
+<body class="bg-gray-50 text-gray-800 py-10 px-4">
+    <div class="max-w-2xl mx-auto bg-white rounded-3xl shadow-sm border p-6 space-y-6">
+        <div class="flex justify-between items-center border-b pb-4">
+            <div>
+                <h1 class="text-xl font-bold text-indigo-600">⚙️ จัดการสถานะออร์เดอร์: โต๊ะ {{ table_number }}</h1>
+                <p class="text-xs text-gray-500">อัปเดตสถานะการทำรายการของลูกค้าโต๊ะนี้</p>
+            </div>
+            <a href="{% url 'merchant_orders' restaurant.slug %}" class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs px-3 py-2 rounded-xl transition font-medium">
+                ⬅️ กลับหน้าหลัก
+            </a>
+        </div>
+
+        <div class="space-y-4">
+            {% for order in table_orders %}
+            <div class="bg-gray-50 p-4 rounded-2xl border space-y-3">
+                <div class="flex justify-between items-center text-xs font-bold text-gray-700 border-b pb-2">
+                    <span>ออร์เดอร์ #{{ order.id }} {% if order.customer_name %}({{ order.customer_name }}){% endif %}</span>
+                    <span class="text-indigo-600">{{ order.get_status_display }}</span>
+                </div>
+
+                <ul class="space-y-3">
+                    {% for item in order.items.all %}
+                    <li class="flex justify-between items-center bg-white p-3 rounded-xl border text-xs">
+                        <div>
+                            <span class="font-bold text-gray-800">{{ item.menu_item.name }}</span> 
+                            <span class="text-indigo-600 font-semibold">x {{ item.quantity }}</span> (฿{{ item.price }})
+                        </div>
+                        
+                        <!-- ฟอร์มเปลี่ยนสถานะรายเมนู (ล็อก disable ถ้าสถานะเป็น cancelled) -->
+                        <form action="{% url 'update_order_item_status' restaurant.slug item.id %}" method="POST" class="flex items-center gap-2">
+                            {% csrf_token %}
+                            <select name="status" onchange="this.form.submit()" 
+                                {% if item.status == 'cancelled' %}disabled class="border rounded-lg text-xs py-1.5 px-2 bg-gray-200 text-gray-500 cursor-not-allowed font-medium"{% else %}class="border rounded-lg text-xs py-1.5 px-2 bg-gray-50 font-medium focus:ring-2 focus:ring-indigo-500"{% endif %}>
+                                <option value="pending" {% if item.status == 'pending' %}selected{% endif %}>⏳ รอดำเนินการ</option>
+                                <option value="cooking" {% if item.status == 'cooking' %}selected{% endif %}>🍳 กำลังทำ</option>
+                                <option value="completed" {% if item.status == 'completed' %}selected{% endif %}>✅ เสร็จสิ้น</option>
+                                <option value="cancelled" {% if item.status == 'cancelled' %}selected{% endif %}>❌ ยกเลิก</option>
+                            </select>
+                        </form>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% empty %}
+            <p class="text-center py-8 text-gray-400 text-sm">ไม่มีออร์เดอร์ที่ค้างอยู่ในโต๊ะนี้</p>
+            {% endfor %}
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>รายงานบัญชีและยอดขาย - {{ restaurant.name }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- นำเข้า Chart.js สำหรับวาดกราฟ -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Prompt', sans-serif; }</style>
+</head>
+<body class="bg-slate-50 text-slate-800 pb-20">
+
+    <!-- Navigation Bar -->
+    <nav class="bg-indigo-600 text-white shadow-md">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+            <h1 class="text-xl font-bold flex items-center gap-2"><span>📊</span> รายงานบัญชีและยอดขาย - {{ restaurant.name }}</h1>
+            <a href="{% url 'merchant_orders' restaurant.slug %}" class="bg-indigo-500 hover:bg-indigo-700 text-white text-xs px-3.5 py-2 rounded-xl transition font-medium flex items-center gap-1 shadow-sm">
+                ⬅️ กลับสู่หน้าจัดการออร์เดอร์
+            </a>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 py-8 space-y-8">
+        
+        <!-- ส่วนสรุปตัวเลขภาพรวม (Cards) -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <!-- ยอดขายสินค้า -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-emerald-100 flex items-center justify-between">
+                <div>
+                    <p class="text-xs text-slate-400 font-semibold uppercase tracking-wider">ยอดขายสินค้า</p>
+                    <p class="text-2xl font-bold text-emerald-600 mt-1">฿{{ sales_revenue|floatformat:2 }}</p>
+                </div>
+                <div class="bg-emerald-50 text-emerald-600 p-3.5 rounded-2xl text-xl shadow-inner">💰</div>
+            </div>
+
+            <!-- รายรับ / รายจ่ายอื่นๆ -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-blue-100 flex items-center justify-between">
+                <div>
+                    <p class="text-xs text-slate-400 font-semibold uppercase tracking-wider">รายรับ / รายจ่ายอื่นๆ</p>
+                    <div class="mt-1 space-y-0.5">
+                        <p class="text-xs font-bold text-slate-600">รับอื่นๆ: <span class="text-emerald-600">+฿{{ other_income|floatformat:2 }}</span></p>
+                        <p class="text-xs font-bold text-slate-600">รายจ่าย: <span class="text-rose-600">-฿{{ total_expenses|floatformat:2 }}</span></p>
+                    </div>
+                </div>
+                <div class="bg-blue-50 text-blue-600 p-3.5 rounded-2xl text-xl shadow-inner">📊</div>
+            </div>
+
+            <!-- กำไรสุทธิ -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-indigo-100 flex items-center justify-between">
+                <div>
+                    <p class="text-xs text-slate-400 font-semibold uppercase tracking-wider">กำไรสุทธิ (Net Profit)</p>
+                    <p class="text-2xl font-bold {% if net_profit >= 0 %}text-indigo-600{% else %}text-rose-600{% endif %} mt-1">฿{{ net_profit|floatformat:2 }}
+                </div>
+                <div class="bg-indigo-50 text-indigo-600 p-3.5 rounded-2xl text-xl shadow-inner">💎</div>
+            </div>
+
+            <!-- ปีปัจจุบัน -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-amber-100 flex items-center justify-between">
+                <div>
+                    <p class="text-xs text-slate-400 font-semibold uppercase tracking-wider">ปีพุทธศักราช</p>
+                    <p class="text-2xl font-bold text-amber-600 mt-1">พ.ศ. {{ current_year|add:543 }}</p>
+                </div>
+                <div class="bg-amber-50 text-amber-600 p-3.5 rounded-2xl text-xl shadow-inner">📅</div>
+            </div>
+        </div>
+
+        <!-- ส่วนบันทึกรายการ & ตารางประวัติรายรับ-รายจ่าย -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- ฟอร์มบันทึกรายการ (ปรับดีไซน์ใหม่ให้พรีเมียมขึ้น) -->
+            <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 lg:col-span-1">
+                <div class="flex items-center gap-2 mb-5 pb-3 border-b">
+                    <span class="text-lg">✍️</span>
+                    <h2 class="text-base font-bold text-slate-800">บันทึกรายรับ / รายจ่าย</h2>
+                </div>
+
+                <form method="POST" class="space-y-4">
+                    {% csrf_token %}
+                    <input type="hidden" name="add_transaction" value="1">
+                    
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1.5">📌 ประเภทรายการ</label>
+                        <select name="transaction_type" class="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50 font-medium text-slate-700">
+                            <option value="expense">🔴 รายจ่าย (เช่น ค่าวัตถุดิบ, ค่าน้ำ-ไฟ)</option>
+                            <option value="income">🟢 รายรับอื่นๆ</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1.5">📝 ชื่อรายการ</label>
+                        <input type="text" name="title" required placeholder="เช่น ซื้อวัตถุดิบตลาด, ค่าแก๊ส" class="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1.5">💵 จำนวนเงิน (บาท)</label>
+                        <input type="number" step="0.01" name="amount" required placeholder="0.00" class="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none font-bold text-slate-700">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1.5">📅 วันที่ทำรายการ</label>
+                        <input type="date" name="date" class="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1.5">💬 หมายเหตุ (ถ้ามี)</label>
+                        <textarea name="note" rows="2" placeholder="รายละเอียดเพิ่มเติม..." class="w-full border border-slate-200 rounded-xl px-3.5 py-2 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none"></textarea>
+                    </div>
+
+                    <!-- เพิ่ม onclick="saveScrollPosition()" เพื่อล็อกตำแหน่งหน้าจอเวลาบันทึก -->
+                    <button type="submit" onclick="saveScrollPosition()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl text-xs transition shadow-md flex items-center justify-center gap-2">
+                        <span>💾</span> บันทึกรายการ
+                    </button>
+                </form>
+            </div>
+
+            <!-- ตารางแสดงประวัติรายรับ-รายจ่าย -->
+            <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 lg:col-span-2 flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center gap-2 mb-5 pb-3 border-b">
+                        <span class="text-lg">📋</span>
+                        <h2 class="text-base font-bold text-slate-800">ประวัติรายรับ - รายจ่าย ทั้งหมด</h2>
+                    </div>
+
+                    <div class="overflow-x-auto max-h-[420px] overflow-y-auto pr-1">
+                        <table class="w-full text-left text-xs text-slate-600">
+                            <thead class="bg-slate-100 text-slate-700 uppercase font-bold sticky top-0">
+                                <tr>
+                                    <th class="p-3 rounded-l-xl">วันที่</th>
+                                    <th class="p-3">ประเภท</th>
+                                    <th class="p-3">ชื่อรายการ</th>
+                                    <th class="p-3 text-right">จำนวนเงิน</th>
+                                    <th class="p-3 text-center rounded-r-xl">จัดการ</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                {% for tx in transactions %}
+                                <tr class="hover:bg-slate-50 transition">
+                                    <td class="p-3.5 text-slate-500 font-medium">{{ tx.date|date:"d/m/Y" }}</td>
+                                    <td class="p-3.5">
+                                        {% if tx.transaction_type == 'income' %}
+                                        <span class="bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-lg font-bold text-[10px] border border-emerald-100">🟢 รายรับอื่นๆ</span>
+                                        {% else %}
+                                        <span class="bg-rose-50 text-rose-700 px-2.5 py-1 rounded-lg font-bold text-[10px] border border-rose-100">🔴 รายจ่าย</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="p-3.5 font-bold text-slate-800">{{ tx.title }} {% if tx.note %}<span class="text-slate-400 text-[10px] font-normal">({{ tx.note }})</span>{% endif %}</td>
+                                    <td class="p-3.5 text-right font-extrabold {% if tx.transaction_type == 'income' %}text-emerald-600{% else %}text-rose-600{% endif %}">
+                                        {% if tx.transaction_type == 'income' %}+{% else %}-{% endif %}฿{{ tx.amount }}
+                                    </td>
+                                    <td class="p-3.5 text-center">
+                                        <!-- เพิ่ม onclick="saveScrollPosition()" ตอนกดลบด้วยเพื่อให้หน้าจอนิ่ง -->
+                                        <form action="{% url 'delete_transaction' restaurant.slug tx.id %}" method="POST" onsubmit="return confirm('ยืนยันลบรายการนี้?');" class="inline">
+                                            {% csrf_token %}
+                                            <button type="submit" onclick="saveScrollPosition()" class="bg-slate-100 hover:bg-rose-50 text-slate-500 hover:text-rose-600 px-3 py-1.5 rounded-xl transition text-[11px] font-medium shadow-sm">
+                                                🗑️ ลบ
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-16 text-slate-400">
+                                        <p class="text-2xl mb-1">📭</p>
+                                        ยังไม่มีการบันทึกรายรับหรือรายจ่ายอื่นๆ ในขณะนี้
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- กราฟแสดงยอดขายรายเดือน (ปีปัจจุบัน) -->
+        <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+            <div class="flex items-center gap-2 mb-4 pb-3 border-b">
+                <span class="text-lg">📈</span>
+                <h2 class="text-base font-bold text-slate-800">กราฟแสดงยอดขายรายเดือน ประจำปี พ.ศ. {{ current_year|add:543 }}</h2>
+            </div>
+            <div class="relative h-80 w-full">
+                <canvas id="monthlySalesChart"></canvas>
+            </div>
+        </div>
+
+        <!-- ตารางจัดอันดับสินค้าขายดี & สรุปยอดรายวัน -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- สินค้าขายดี -->
+            <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+                <div class="flex items-center gap-2 mb-4 pb-3 border-b">
+                    <span class="text-lg">🏆</span>
+                    <h2 class="text-base font-bold text-slate-800">10 อันดับสินค้าขายดีที่สุด (Best Sellers)</h2>
+                </div>
+                <div class="overflow-x-auto max-h-80 overflow-y-auto">
+                    <table class="w-full text-left text-xs text-slate-600">
+                        <thead class="bg-slate-100 text-slate-700 uppercase font-bold sticky top-0">
+                            <tr>
+                                <th class="p-3 rounded-l-xl text-center w-16">อันดับ</th>
+                                <th class="p-3">เมนู</th>
+                                <th class="p-3 text-center">จำนวน</th>
+                                <th class="p-3 text-right rounded-r-xl">ยอดขาย</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            {% for item in top_selling_items %}
+                            <tr class="hover:bg-slate-50">
+                                <td class="p-3 text-center font-bold text-indigo-600">
+                                    {% if forloop.counter == 1 %}🥇{% elif forloop.counter == 2 %}🥈{% elif forloop.counter == 3 %}🥉{% else %}#{{ forloop.counter }}{% endif %}
+                                </td>
+                                <td class="p-3 font-semibold text-slate-800">{{ item.menu_item__name }}</td>
+                                <td class="p-3 text-center font-bold text-slate-600">{{ item.total_qty }} ชิ้น</td>
+                                <td class="p-3 text-right font-extrabold text-emerald-600">฿{{ item.total_revenue }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center py-8 text-slate-400">ยังไม่มีข้อมูลการขายสินค้า</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- สรุปยอดรายวัน -->
+            <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+                <div class="flex items-center gap-2 mb-4 pb-3 border-b">
+                    <span class="text-lg">📅</span>
+                    <h2 class="text-base font-bold text-slate-800">สรุปยอดขายรายวัน (10 วันล่าสุด)</h2>
+                </div>
+                <div class="overflow-x-auto max-h-80 overflow-y-auto">
+                    <table class="w-full text-left text-xs text-slate-600">
+                        <thead class="bg-slate-100 text-slate-700 uppercase font-bold sticky top-0">
+                            <tr>
+                                <th class="p-3 rounded-l-xl">วันที่</th>
+                                <th class="p-3 text-right rounded-r-xl">ยอดขายรวม</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            {% for row in daily_sales %}
+                            <tr class="hover:bg-slate-50">
+                                <td class="p-3 font-semibold text-slate-700">{{ row.date|date:"d/m/Y" }}</td>
+                                <td class="p-3 text-right font-extrabold text-emerald-600">฿{{ row.total }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="2" class="text-center py-8 text-slate-400">ยังไม่มีข้อมูลยอดขาย</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Script สำหรับสร้างกราฟและระบบล็อกตำแหน่งหน้าจอ (Scroll Position) -->
+    <script>
+        // ระบบจำและล็อกตำแหน่งหน้าจอไม่ให้เด้งขึ้นบนเวลาบันทึกหรือลบ
+        function saveScrollPosition() {
+            localStorage.setItem('scrollPosition', window.scrollY);
+        }
+
+        window.addEventListener('load', function() {
+            const scrollPos = localStorage.getItem('scrollPosition');
+            if (scrollPos) {
+                window.scrollTo(0, parseInt(scrollPos));
+                localStorage.removeItem('scrollPosition');
+            }
+        });
+
+        // Chart.js Setup
+        const ctx = document.getElementById('monthlySalesChart').getContext('2d');
+        const monthlyData = {{ months_data|safe }};
+
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'],
+                datasets: [{
+                    label: 'ยอดขาย (บาท)',
+                    data: monthlyData,
+                    backgroundColor: 'rgba(79, 70, 229, 0.85)',
+                    borderColor: 'rgb(79, 70, 229)',
+                    borderWidth: 1,
+                    borderRadius: 10
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { font: { family: 'Prompt' } }
+                    },
+                    x: {
+                        ticks: { font: { family: 'Prompt' } }
+                    }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+    </script>
+
+</body>
+</html>

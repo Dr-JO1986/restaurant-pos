@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="th" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบบริหารจัดการร้านอาหารอัจฉริยะ (POS & Restaurant Management SaaS)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Prompt', sans-serif; }</style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased">
+
+    <!-- Navigation Bar -->
+    <nav class="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-100 shadow-sm">
+        <div class="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <span class="text-2xl">🍲</span>
+                <span class="text-lg font-bold bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">Smart Restaurant POS</span>
+            </div>
+            <div class="hidden md:flex items-center gap-8 text-sm font-medium text-slate-600">
+                <a href="#features" class="hover:text-indigo-600 transition">คุณสมบัติระบบ</a>
+                <a href="#pricing" class="hover:text-indigo-600 transition">แพ็กเกจราคา</a>
+                <a href="#contact" class="hover:text-indigo-600 transition">ติดต่อเรา</a>
+            </div>
+            <div class="flex items-center gap-4">
+                <a href="/login/" class="text-sm font-semibold text-slate-600 hover:text-indigo-600 transition">เข้าสู่ระบบ</a>
+                <a href="#contact" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold px-5 py-2.5 rounded-2xl transition shadow-lg shadow-indigo-100">
+                    สมัครใช้งานระบบ 🚀
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <header class="pt-32 pb-20 md:pt-44 md:pb-32 bg-gradient-to-b from-indigo-50/50 via-white to-slate-50 overflow-hidden">
+        <div class="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+            <div class="space-y-6 text-center md:text-left">
+                <div class="inline-flex items-center gap-2 bg-indigo-50 text-indigo-700 px-4 py-1.5 rounded-full text-xs font-bold border border-indigo-100">
+                    ✨ ยกระดับร้านอาหารของคุณสู่ระบบดิจิทัล 100%
+                </div>
+                <h1 class="text-4xl md:text-6xl font-extrabold text-slate-900 leading-tight">
+                    ระบบบริหารจัดการ <span class="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">ร้านอาหารอัจฉริยะ</span>
+                </h1>
+                <p class="text-base text-slate-600 leading-relaxed max-w-xl">
+                    ครบเครื่องเรื่องร้านอาหาร! ทั้งระบบสั่งอาหารผ่าน QR Code ที่โต๊ะ, หน้าจอจัดการออร์เดอร์ห้องครัวเรียลไทม์, พิมพ์ใบเสร็จมาตรฐาน และระบบบัญชีคำนวณกำไรสุทธิอัตโนมัติ
+                </p>
+                <div class="flex flex-col sm:flex-row justify-center md:justify-start gap-4 pt-4">
+                    <a href="#contact" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-8 py-4 rounded-2xl transition shadow-xl shadow-indigo-200 text-center text-sm flex items-center justify-center gap-2">
+                        <span>🎯</span> สนใจติดต่อซื้อระบบ / ติดตั้ง
+                    </a>
+                    <a href="#features" class="bg-white hover:bg-slate-100 text-slate-700 font-bold px-8 py-4 rounded-2xl transition border border-slate-200 text-center text-sm">
+                        ดูฟีเจอร์ทั้งหมด
+                    </a>
+                </div>
+            </div>
+            <div class="relative flex justify-center">
+                <div class="w-full max-w-lg bg-white p-4 rounded-3xl shadow-2xl border border-slate-100 transform hover:scale-[1.01] transition duration-300">
+                    <div class="bg-indigo-600 rounded-2xl p-6 text-white text-center space-y-2">
+                        <p class="text-xs uppercase tracking-wider opacity-85 font-semibold">ยอดขายวันนี้ (ตัวอย่างระบบ)</p>
+                        <p class="text-3xl font-extrabold">฿24,850.00</p>
+                        <p class="text-xs text-indigo-200">💎 คำนวณกำไรสุทธิเรียลไทม์ แม่นยำ 100%</p>
+                    </div>
+                    <div class="p-4 space-y-3 mt-2">
+                        <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl text-xs font-semibold">
+                            <span>🟢 โต๊ะ 01 - สั่งอาหารสำเร็จ</span>
+                            <span class="text-emerald-600">฿450.00</span>
+                        </div>
+                        <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl text-xs font-semibold">
+                            <span>🟢 โต๊ะ 03 - รอชำระเงิน</span>
+                            <span class="text-indigo-600">฿1,250.00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Features Section -->
+    <section id="features" class="py-24 bg-white">
+        <div class="max-w-7xl mx-auto px-6 space-y-16">
+            <div class="text-center max-w-2xl mx-auto space-y-3">
+                <h2 class="text-xs font-bold text-indigo-600 uppercase tracking-widest">ฟีเจอร์ทรงพลัง</h2>
+                <h3 class="text-3xl font-extrabold text-slate-900">ทุกสิ่งที่คุณต้องการเพื่อบริหารร้านให้ปัง</h3>
+                <p class="text-sm text-slate-500">ออกแบบมาเพื่อเจ้าของร้านอาหารยุคใหม่ ใช้งานง่าย ไม่ซับซ้อน รวดเร็วบนทุกอุปกรณ์</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <!-- Feature 1 -->
+                <div class="bg-slate-50 p-8 rounded-3xl border border-slate-100 hover:shadow-xl transition duration-300 space-y-4">
+                    <div class="w-14 h-14 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center text-2xl font-bold">📱</div>
+                    <h4 class="text-lg font-bold text-slate-800">สแกนสั่งอาหารผ่าน QR Code</h4>
+                    <p class="text-xs text-slate-600 leading-relaxed">ลูกค้าสแกน QR ที่โต๊ะ สั่งอาหารได้ทันทีผ่านมือถือ ลดภาระพนักงาน ลูกค้าเลือกเมนูสะดวก รวดเร็ว ยอดไม่ตก</p>
+                </div>
+
+                <!-- Feature 2 -->
+                <div class="bg-slate-50 p-8 rounded-3xl border border-slate-100 hover:shadow-xl transition duration-300 space-y-4">
+                    <div class="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center text-2xl font-bold">📊</div>
+                    <h4 class="text-lg font-bold text-slate-800">ระบบบัญชี & กำไรสุทธิ</h4>
+                    <p class="text-xs text-slate-600 leading-relaxed">บันทึกรายรับ-รายจ่ายอื่นๆ (ค่าวัตถุดิบ, ค่าน้ำ-ไฟ) พร้อมคำนวณกำไรสุทธิแบบเรียลไทม์ และกราฟสรุปยอดขายรายเดือน</p>
+                </div>
+
+                <!-- Feature 3 -->
+                <div class="bg-slate-50 p-8 rounded-3xl border border-slate-100 hover:shadow-xl transition duration-300 space-y-4">
+                    <div class="w-14 h-14 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center text-2xl font-bold">🏆</div>
+                    <h4 class="text-lg font-bold text-slate-800">จัดอันดับสินค้าขายดี (Best Sellers)</h4>
+                    <p class="text-xs text-slate-600 leading-relaxed">รู้ทันทีว่าเมนูไหนขายดีที่สุด เมนูไหนควรดันโปรโมชัน ช่วยวางแผนสต็อกวัตถุดิบได้อย่างแม่นยำ</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pricing Section -->
+    <section id="pricing" class="py-24 bg-slate-50">
+        <div class="max-w-7xl mx-auto px-6 space-y-16">
+            <div class="text-center max-w-2xl mx-auto space-y-3">
+                <h2 class="text-xs font-bold text-indigo-600 uppercase tracking-widest">แพ็กเกจคุ้มค่า</h2>
+                <h3 class="text-3xl font-extrabold text-slate-900">เลือกแพ็กเกจที่ใช่สำหรับธุรกิจของคุณ</h3>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+                <!-- Standard Plan -->
+                <div class="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6 flex flex-col justify-between">
+                    <div class="space-y-4">
+                        <span class="bg-slate-100 text-slate-700 text-xs font-bold px-3 py-1 rounded-full">ร้านค้ารายย่อย</span>
+                        <h4 class="text-2xl font-extrabold text-slate-900">Starter Plan</h4>
+                        <p class="text-3xl font-black text-indigo-600">฿990 <span class="text-xs font-normal text-slate-500">/ เดือน</span></p>
+                        <ul class="space-y-3 text-xs text-slate-600 pt-4 border-t">
+                            <li class="flex items-center gap-2">✅ ระบบสั่งอาหารผ่าน QR Code</li>
+                            <li class="flex items-center gap-2">✅ จัดการเมนู & หมวดหมู่ไม่จำกัด</li>
+                            <li class="flex items-center gap-2">✅ หน้าจอครัว real-time</li>
+                        </ul>
+                    </div>
+                    <a href="#contact" class="block text-center bg-slate-100 hover:bg-indigo-600 hover:text-white text-slate-700 font-bold py-3 rounded-2xl transition text-xs">
+                        เลือกแพ็กเกจนี้
+                    </a>
+                </div>
+
+                <!-- Pro Plan (Featured) -->
+                <div class="bg-indigo-900 text-white p-8 rounded-3xl shadow-xl space-y-6 flex flex-col justify-between relative overflow-hidden">
+                    <div class="absolute top-0 right-0 bg-gradient-to-l from-amber-400 to-amber-500 text-slate-900 text-[10px] font-black px-4 py-1 rounded-bl-2xl uppercase tracking-wider">
+                        ยอดนิยม 🔥
+                    </div>
+                    <div class="space-y-4">
+                        <span class="bg-indigo-800 text-indigo-200 text-xs font-bold px-3 py-1 rounded-full">มืออาชีพ / แฟรนไชส์</span>
+                        <h4 class="text-2xl font-extrabold text-white">Professional Pro</h4>
+                        <p class="text-3xl font-black text-amber-400">฿1,990 <span class="text-xs font-normal text-indigo-200">/ เดือน</span></p>
+                        <ul class="space-y-3 text-xs text-indigo-100 pt-4 border-t border-indigo-800">
+                            <li class="flex items-center gap-2">✅ ฟีเจอร์ Starter ทั้งหมด</li>
+                            <li class="flex items-center gap-2">✅ ระบบรายงานบัญชีและกำไรสุทธิครบวงจร</li>
+                            <li class="flex items-center gap-2">✅ กราฟยอดขายรายเดือน & จัดอันดับสินค้าขายดี</li>
+                            <li class="flex items-center gap-2">✅ สนับสนุนดูแลระบบตลอด 24 ชม.</li>
+                        </ul>
+                    </div>
+                    <a href="#contact" class="block text-center bg-amber-400 hover:bg-amber-500 text-slate-900 font-bold py-3 rounded-2xl transition text-xs shadow-lg">
+                        สมัครใช้งานแพ็กเกจนี้
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact / Register Section -->
+    <section id="contact" class="py-24 bg-white">
+        <div class="max-w-3xl mx-auto px-6 bg-slate-50 p-10 md:p-14 rounded-3xl border border-slate-200 shadow-sm space-y-8">
+            <div class="text-center space-y-2">
+                <h3 class="text-2xl md:text-3xl font-extrabold text-slate-900">🎯 สนใจติดต่อซื้อระบบ / สมัครใช้งาน</h3>
+                <p class="text-xs text-slate-500">กรอกข้อมูลด้านล่างเพื่อให้ทีมงานติดต่อกลับเพื่อติดตั้งระบบให้กับร้านของคุณ</p>
+            </div>
+
+            <form method="POST" action="" class="space-y-4">
+                {% csrf_token %}
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">ชื่อ - นามสกุล / ผู้ติดต่อ</label>
+                        <input type="text" name="contact_name" required placeholder="เช่น คุณพงษ์สวัสดิ์" class="w-full border border-slate-200 rounded-2xl px-4 py-3 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">เบอร์โทรศัพท์ติดต่อ</label>
+                        <input type="tel" name="phone" required placeholder="081-234-5678" class="w-full border border-slate-200 rounded-2xl px-4 py-3 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">ชื่อร้านอาหาร / ธุรกิจของคุณ</label>
+                    <input type="text" name="restaurant_name" required placeholder="เช่น คาเฟ่ สมพงษ์" class="w-full border border-slate-200 rounded-2xl px-4 py-3 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">แพ็กเกจที่สนใจ</label>
+                    <select name="package" class="w-full border border-slate-200 rounded-2xl px-4 py-3 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white font-medium text-slate-700">
+                        <option value="starter">Starter Plan (฿990 / เดือน)</option>
+                        <option value="pro">Professional Pro (฿1,990 / เดือน)</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">ข้อความเพิ่มเติม / สอบถามรายละเอียด</label>
+                    <textarea name="message" rows="3" placeholder="ระบุรายละเอียดเพิ่มเติม..." class="w-full border border-slate-200 rounded-2xl px-4 py-3 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white"></textarea>
+                </div>
+
+                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-2xl transition shadow-xl shadow-indigo-200 text-sm">
+                    🚀 ส่งข้อมูลสมัครใช้งาน / ติดต่อซื้อระบบ
+                </button>
+            </form>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-slate-900 text-white py-12 text-center text-xs space-y-4">
+        <p class="font-medium">© 2026 Smart Restaurant POS System. All rights reserved.</p>
+        <p class="text-slate-400">ระบบบริหารจัดการร้านอาหารระดับมืออาชีพ พัฒนาด้วย Django & Tailwind CSS</p>
+    </footer>
+
+    <!-- Modal ป๊อปอัพแจ้งเตือนความสำเร็จสุดพรีเมียม -->
+    {% if submitted %}
+    <div id="successModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
+        <div class="bg-white w-full max-w-lg rounded-3xl shadow-2xl p-8 text-center space-y-6 transform transition-all scale-100 border border-slate-100">
+            <!-- ไอคอนสำเร็จขนาดใหญ่ -->
+            <div class="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-4xl mx-auto shadow-inner animate-bounce">
+                🎉
+            </div>
+            
+            <!-- ข้อความหัวข้อและเนื้อหา -->
+            <div class="space-y-3">
+                <h3 class="text-2xl font-extrabold text-slate-900">ขอบพระคุณท่านเป็นอย่างยิ่ง!</h3>
+                <p class="text-sm font-semibold text-indigo-600">ที่ให้ความสนใจระบบบริหารจัดการร้านอาหารอัจฉริยะ</p>
+                <p class="text-xs text-slate-600 leading-relaxed px-4">
+                    เรามั่นใจเป็นอย่างยิ่งว่า ระบบอัจฉริยะของเราจะช่วยให้กิจการของท่านบริหารจัดการง่ายขึ้น ยอดขายพุ่งทะยาน และเติบโตอย่างมั่นคงอย่างไร้รอยต่อ
+                </p>
+                <div class="bg-indigo-50 text-indigo-800 text-xs font-bold py-3 px-4 rounded-2xl border border-indigo-100 mt-2">
+                    ⏱️ ทีมงานมืออาชีพจะรีบติดต่อกลับหาท่านภายใน 24 ชั่วโมง เพื่อติดตั้งระบบให้ท่านโดยเร็วที่สุดครับ!
+                </div>
+            </div>
+
+            <!-- ปุ่มปิดกล่อง -->
+            <button onclick="closeSuccessModal()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 rounded-2xl transition shadow-lg shadow-indigo-200 text-sm">
+                ตกลง / กลับสู่หน้าหลัก 👍
+            </button>
+        </div>
+    </div>
+
+    <script>
+        function closeSuccessModal() {
+            const modal = document.getElementById('successModal');
+            if (modal) {
+                modal.remove();
+            }
+            // รีเฟรชหรือเคลียร์ URL กลับหน้าปกติ
+            window.location.href = "{% url 'landing_page' %}";
+        }
+    </script>
+    {% endif %}
+</body>
+</html>

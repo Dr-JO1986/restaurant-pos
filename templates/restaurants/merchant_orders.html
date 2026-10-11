@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>จัดการออร์เดอร์และโต๊ะ - {{ restaurant.name }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Prompt', sans-serif; }</style>
+</head>
+<body class="bg-gray-50 text-gray-800 pb-20">
+
+    <!-- Navigation Bar -->
+    <nav class="bg-indigo-600 text-white shadow-md">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+            <h1 class="text-xl font-bold">🏪 {{ restaurant.name }} (ระบบจัดการครัวและโต๊ะ)</h1>
+            <div class="flex items-center gap-3">
+                <a href="{% url 'merchant_dashboard' restaurant.slug %}" class="bg-indigo-500 hover:bg-indigo-700 text-white text-xs px-3 py-1.5 rounded-lg transition">
+                    ⚙️ จัดการเมนู
+                </a>
+                <a href="{% url 'merchant_tables' restaurant.slug %}" class="bg-blue-500 hover:bg-blue-600 text-white text-xs px-3 py-1.5 rounded-lg transition">
+                    🪑 จัดการโต๊ะ & QR Code
+                </a>
+                <a href="{% url 'merchant_accounting_report' restaurant.slug %}" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3 py-1.5 rounded-lg transition font-bold flex items-center gap-1">
+                    📊 รายงานบัญชี
+                </a>
+                <a href="/logout/" class="bg-red-500 hover:bg-red-600 text-white text-xs px-3 py-1.5 rounded-lg transition">
+                    ออกจากระบบ
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 py-8 space-y-10">
+        
+        <!-- SECTION 1: Active Tables (โต๊ะที่กำลังสั่งสินค้าอยู่) -->
+        <div>
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h2 class="text-xl font-bold text-gray-800">🪑 โต๊ะที่กำลังใช้บริการอยู่ (Active Tables)</h2>
+                    <p class="text-xs text-gray-500">โต๊ะที่มีการสั่งสินค้าเข้ามาและยังไม่ได้ชำระเงิน</p>
+                </div>
+                <button onclick="location.reload();" class="bg-white border hover:bg-gray-100 text-gray-700 text-xs px-3 py-2 rounded-lg shadow-sm transition">
+                    🔄 รีเฟรชข้อมูล
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {% for table in active_tables %}
+                <div class="bg-white rounded-2xl shadow-sm border p-6 flex flex-col justify-between relative overflow-hidden border-indigo-100">
+                    <div class="absolute top-0 right-0 bg-indigo-600 text-white px-4 py-1 text-xs font-bold rounded-bl-xl">
+                        {{ table.order_count }} รอบการสั่ง
+                    </div>
+
+                    <div>
+                        <!-- Table Header -->
+                        <div class="mb-4">
+                            <h3 class="text-xl font-bold text-indigo-600">📍 โต๊ะ / โซน: {{ table.table_number }}</h3>
+                            <p class="text-xs text-gray-400 mt-0.5">รวมทุกออร์เดอร์ที่ยังไม่ปิดโต๊ะ</p>
+                        </div>
+
+                        <!-- Summary of All Orders in this Table -->
+                        <div class="border-t border-b py-3 my-3 space-y-3 max-h-60 overflow-y-auto">
+                            {% for order in table.orders %}
+                            <div class="bg-gray-50 p-2.5 rounded-xl text-xs space-y-1">
+                                <div class="flex justify-between font-bold text-gray-700">
+                                    <span>ออร์เดอร์ #{{ order.id }} {% if order.customer_name %}({{ order.customer_name }}){% endif %}</span>
+                                    <span class="text-indigo-600">{{ order.get_status_display }}</span>
+                                </div>
+                                <ul class="space-y-1 text-gray-600">
+                                    {% for item in order.items.all %}
+                                    <li class="flex justify-between">
+                                        <span>- {{ item.menu_item.name }} x {{ item.quantity }}</span>
+                                        <span>฿{{ item.price }}</span>
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div>
+                        <!-- Grand Total Price -->
+                        <div class="flex justify-between items-center mb-4 font-bold text-base">
+                            <span>ยอดรวมสุทธิโต๊ะนี้:</span>
+                            <span class="text-indigo-600 text-lg">฿{{ table.total_amount }}</span>
+                        </div>
+
+                        <!-- Actions: View Receipt, Status Management & Checkout -->
+                        <div class="grid grid-cols-2 gap-2 pt-2 border-t mb-2">
+                            <a href="{% url 'merchant_table_receipt' restaurant.slug table.table_number %}" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold py-2 px-2 rounded-xl text-xs text-center transition">
+                                🧾 ดูสลิปบิล
+                            </a>
+                            <a href="{% url 'merchant_table_status_manage' restaurant.slug table.table_number %}" class="bg-amber-50 hover:bg-amber-100 text-amber-700 font-semibold py-2 px-2 rounded-xl text-xs text-center transition">
+                                ⚙️ จัดการสถานะ
+                            </a>
+                        </div>
+                        <form action="{% url 'checkout_table_order' restaurant.slug table.table_number %}" method="POST" onsubmit="return confirm('ยืนยันรับชำระเงินและปิดโต๊ะ {{ table.table_number }}? โต๊ะนี้จะถูกย้ายไปประวัติยอดขายประจำวัน');" class="block">
+                            {% csrf_token %}
+                            <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-xl text-xs transition shadow-sm text-center">
+                                💰 ชำระเงิน / ปิดโต๊ะ
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="col-span-full bg-white p-12 rounded-2xl shadow-sm text-center border">
+                    <p class="text-gray-400 text-sm">📭 ยังไม่มีโต๊ะที่กำลังใช้บริการในขณะนี้ (ทุกโต๊ะชำระเงินเรียบร้อยแล้ว)</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- SECTION 2: Daily Sales History (ประวัติบิลขาย พร้อมช่องค้นหาและแบ่งหน้า) -->
+        <div class="bg-white rounded-2xl shadow-sm border p-6">
+            <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 border-b pb-4">
+                <div>
+                    <h2 class="text-lg font-bold text-gray-800">📊 ประวัติบิลการขายทั้งหมด</h2>
+                    <p class="text-xs text-gray-500">ค้นหาประวัติย้อนหลังและรายการที่ชำระเงินแล้ว (แสดงหน้าละ 15 รายการ)</p>
+                </div>
+
+                <!-- ฟอร์มค้นหาพร้อม Tooltip และระบบล็อกตำแหน่งหน้าจอ -->
+                <form method="GET" class="flex items-center gap-2 w-full md:w-auto relative">
+                    <div class="relative w-full md:w-64">
+                        <input type="text" name="q" value="{{ search_query }}" placeholder="ค้นหาเลขออร์เดอร์, โต๊ะ, วันที่..." class="border rounded-xl px-3 py-2 text-xs w-full focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm pr-8">
+                        
+                        <!-- ไอคอนเครื่องหมายคำถาม (Tooltip Trigger) -->
+                        <div class="absolute right-2.5 top-1/2 -translate-y-1/2 group cursor-pointer">
+                            <span class="bg-gray-200 text-gray-600 rounded-full w-4 h-4 text-[10px] font-bold flex items-center justify-center">?</span>
+                            
+                            <!-- กล่องข้อความแนะนำ (Tooltip Box) -->
+                            <div class="absolute right-0 bottom-full mb-2 hidden group-hover:block w-64 bg-slate-800 text-white text-[11px] rounded-xl p-3 shadow-xl z-50 leading-relaxed">
+                                <p class="font-bold text-amber-300 mb-1">💡 วิธีการค้นหา:</p>
+                                <ul class="space-y-1 text-gray-200 list-disc list-inside">
+                                    <li><b>เลขออร์เดอร์:</b> พิมพ์ <span class="text-cyan-300">36</span> หรือ <span class="text-cyan-300">#36</span></li>
+                                    <li><b>ชื่อโต๊ะ/โซน:</b> พิมพ์ <span class="text-cyan-300">A2</span> หรือ <span class="text-cyan-300">กระท่อม</span></li>
+                                    <li><b>วันที่ (ค.ศ.):</b> พิมพ์รูปแบบ <span class="text-cyan-300">YYYY-MM-DD</span> (เช่น <span class="text-amber-200">2026-10-11</span>)</li>
+                                </ul>
+                                <div class="absolute right-2 top-full w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-slate-800"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- เพิ่ม onclick="saveScrollPosition()" ที่ปุ่มค้นหา -->
+                    <button type="submit" onclick="saveScrollPosition()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition shadow-sm whitespace-nowrap">
+                        🔍 ค้นหา
+                    </button>
+                    
+                    {% if search_query %}
+                    <!-- เพิ่ม onclick="saveScrollPosition()" ที่ปุ่มรีเซ็ต -->
+                    <a href="{% url 'merchant_orders' restaurant.slug %}" onclick="saveScrollPosition()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-2 rounded-xl text-xs transition whitespace-nowrap">
+                        รีเซ็ต
+                    </a>
+                    {% endif %}
+                </form>
+
+                <div class="text-right whitespace-nowrap">
+                    <p class="text-xs text-gray-500">ยอดขายรวมตามเงื่อนไข</p>
+                    <p class="text-xl font-bold text-emerald-600">฿{{ daily_total_sales }}</p>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs text-gray-600">
+                    <thead class="bg-gray-100 text-gray-700 uppercase">
+                        <tr>
+                            <th class="p-3 rounded-l-lg">รหัสออร์เดอร์</th>
+                            <th class="p-3">โต๊ะ / โซน</th>
+                            <th class="p-3">ชื่อลูกค้า</th>
+                            <th class="p-3">เวลาที่ชำระเงิน</th>
+                            <th class="p-3 text-right">ยอดเงิน</th>
+                            <th class="p-3 text-center rounded-r-lg">ใบเสร็จ</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        {% for order in paid_orders_today %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="p-3 font-semibold text-gray-800">#{{ order.id }}</td>
+                            <td class="p-3 font-bold text-indigo-600">{{ order.table_number }}</td>
+                            <td class="p-3">{{ order.customer_name|default:"-" }}</td>
+                            <td class="p-3">{{ order.created_at|date:"d/m/Y H:i" }} น.</td>
+                            <td class="p-3 text-right font-bold text-gray-900">฿{{ order.total_price }}</td>
+                            <td class="p-3 text-center">
+                                <a href="{% url 'merchant_table_receipt' restaurant.slug order.table_number|default:'none' %}?order_id={{ order.id }}" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-xl text-xs font-medium transition shadow-sm">
+                                    ดูสลิปบิล
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center py-8 text-gray-400">ยังไม่มีประวัติการขายที่ตรงกับเงื่อนไข</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+                <!-- Pagination (ปุ่มเลื่อนหน้า พร้อมระบบจำตำแหน่งหน้าจอ ไม่ให้เด้งขึ้นบน) -->
+                {% if paid_orders_today.has_other_pages %}
+                <div class="flex justify-center items-center gap-2 mt-6 pt-4 border-t">
+                    {% if paid_orders_today.has_previous %}
+                    <a href="?page={{ paid_orders_today.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" onclick="saveScrollPosition()" class="px-3 py-1.5 bg-white border rounded-lg text-xs font-medium hover:bg-gray-50">
+                        ◀ หน้าก่อนหน้า
+                    </a>
+                    {% endif %}
+
+                    <span class="text-xs text-gray-500 px-2">
+                        หน้าที่ {{ paid_orders_today.number }} จาก {{ paid_orders_today.paginator.num_pages }}
+                    </span>
+
+                    {% if paid_orders_today.has_next %}
+                    <a href="?page={{ paid_orders_today.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" onclick="saveScrollPosition()" class="px-3 py-1.5 bg-white border rounded-lg text-xs font-medium hover:bg-gray-50">
+                        หน้าถัดไป ▶
+                    </a>
+                    {% endif %}
+                </div>
+
+                <!-- สคริปต์สำหรับจดจำและล็อกตำแหน่งหน้าจอ -->
+                <script>
+                    function saveScrollPosition() {
+                        localStorage.setItem('scrollPosition', window.scrollY);
+                    }
+
+                    window.addEventListener('load', function() {
+                        const scrollPos = localStorage.getItem('scrollPosition');
+                        if (scrollPos) {
+                            window.scrollTo(0, parseInt(scrollPos));
+                            localStorage.removeItem('scrollPosition');
+                        }
+                    });
+                </script>
+                {% endif %}
+            </div>
+        </div>
+
+    </main>
+
+</body>
+</html>
