@@ -1,4 +1,4 @@
-#!/usr/init/env bash
+#!/usr/bin/env bash
 # ออกจากโปรแกรมทันทีหากมีข้อผิดพลาด
 set -o errexit
 
