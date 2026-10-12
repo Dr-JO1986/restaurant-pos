@@ -341,7 +341,7 @@ class OnlinePickupOrderTests(TestCase):
 
         self.assertEqual(response.status_code, 404)
 
-    def test_paid_order_history_shows_customer_items_total_and_online_slip(self):
+    def test_paid_order_history_has_six_columns_and_links_to_receipt(self):
         self.client.force_login(self.user)
         self.client.post(
             reverse('place_online_order', args=[self.restaurant.slug]),
@@ -370,15 +370,40 @@ class OnlinePickupOrderTests(TestCase):
         response = self.client.get(reverse('merchant_orders', args=[self.restaurant.slug]))
 
         self.assertContains(response, 'สมชาย')
-        self.assertContains(response, 'ข้าวผัด × 2')
         self.assertContains(response, '฿100.00')
-        self.assertContains(
-            response,
-            reverse('view_online_payment_slip', args=[self.restaurant.slug, online_order.id]),
-        )
         self.assertContains(response, 'ลูกค้าหน้าร้าน')
         self.assertContains(response, 'A1')
         self.assertContains(
             response,
             f"{reverse('merchant_table_receipt', args=[self.restaurant.slug, table_order.table_number])}?order_id={table_order.id}",
         )
+        self.assertContains(
+            response,
+            f"{reverse('merchant_table_receipt', args=[self.restaurant.slug, online_order.table_number])}?order_id={online_order.id}",
+        )
+        self.assertContains(response, '<th class="p-3 rounded-l-lg">รหัสออร์เดอร์</th>', html=True)
+        self.assertEqual(response.content.count(b'<th class="p-3'), 6)
+
+        online_receipt = self.client.get(
+            reverse(
+                'merchant_table_receipt',
+                args=[self.restaurant.slug, online_order.table_number],
+            ),
+            {'order_id': online_order.id},
+        )
+        self.assertContains(online_receipt, 'ข้าวผัด')
+        self.assertContains(online_receipt, 'สมชาย')
+        self.assertContains(online_receipt, 'window.print()')
+        self.assertContains(
+            online_receipt,
+            reverse('view_online_payment_slip', args=[self.restaurant.slug, online_order.id]),
+        )
+
+        table_receipt = self.client.get(
+            reverse(
+                'merchant_table_receipt',
+                args=[self.restaurant.slug, table_order.table_number],
+            ),
+            {'order_id': table_order.id},
+        )
+        self.assertNotContains(table_receipt, 'เปิดดูสลิปโอนเงิน')

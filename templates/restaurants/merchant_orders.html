@@ -228,7 +228,6 @@
                             <th class="p-3 rounded-l-lg">รหัสออร์เดอร์</th>
                             <th class="p-3">โต๊ะ / โซน</th>
                             <th class="p-3">ชื่อลูกค้า</th>
-                            <th class="p-3">รายการสินค้า</th>
                             <th class="p-3">เวลาที่ชำระเงิน</th>
                             <th class="p-3 text-right">ยอดเงิน</th>
                             <th class="p-3 text-center rounded-r-lg">ใบเสร็จ</th>
@@ -240,36 +239,17 @@
                             <td class="p-3 font-semibold text-gray-800">#{{ order.id }}</td>
                             <td class="p-3 font-bold text-indigo-600">{% if order.order_type == 'pickup' %}รับที่ร้าน{% else %}{{ order.table_number }}{% endif %}</td>
                             <td class="p-3">{{ order.customer_name|default:"-" }}</td>
-                            <td class="p-3">
-                                <ul class="space-y-1">
-                                    {% for item in order.items.all %}
-                                    <li>{{ item.menu_item.name }} × {{ item.quantity }} <span class="text-gray-500">(฿{{ item.price|floatformat:2 }} / ชิ้น)</span></li>
-                                    {% empty %}
-                                    <li class="text-gray-400">ไม่มีรายการสินค้า</li>
-                                    {% endfor %}
-                                </ul>
-                            </td>
                             <td class="p-3">{{ order.created_at|date:"d/m/Y H:i" }} น.</td>
                             <td class="p-3 text-right font-bold text-gray-900">฿{{ order.total_price }}</td>
                             <td class="p-3 text-center">
-                                {% if order.order_type == 'pickup' %}
-                                {% if order.payment_slip %}
-                                <a href="{% url 'view_online_payment_slip' restaurant.slug order.id %}" target="_blank" rel="noopener" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-xl text-xs font-medium transition shadow-sm">
-                                    ดูสลิปโอนเงิน
-                                </a>
-                                {% else %}
-                                <span class="text-gray-400">ไม่มีสลิป</span>
-                                {% endif %}
-                                {% else %}
                                 <a href="{% url 'merchant_table_receipt' restaurant.slug order.table_number %}?order_id={{ order.id }}" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-xl text-xs font-medium transition shadow-sm">
-                                    ดูสลิปบิล
+                                    ดู / พิมพ์ใบเสร็จ
                                 </a>
-                                {% endif %}
                             </td>
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="7" class="text-center py-8 text-gray-400">ยังไม่มีประวัติการขายที่ตรงกับเงื่อนไข</td>
+                            <td colspan="6" class="text-center py-8 text-gray-400">ยังไม่มีประวัติการขายที่ตรงกับเงื่อนไข</td>
                         </tr>
                         {% endfor %}
                     </tbody>

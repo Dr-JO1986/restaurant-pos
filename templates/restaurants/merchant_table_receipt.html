@@ -25,19 +25,25 @@
             <p class="text-xs text-gray-500 mt-1">ใบเสร็จรับเงิน / สรุปยอดขาย</p>
             
             <div class="inline-block bg-indigo-50 text-indigo-700 px-4 py-1.5 rounded-full text-xs font-bold mt-3">
-                {% if table_orders.first.order_type == 'pickup' %}
+                {% if first_order.order_type == 'pickup' %}
                 🛍️ ออร์เดอร์รับที่ร้าน
                 {% else %}
                 📍 โต๊ะ / โซน: {{ table_number }}
                 {% endif %}
             </div>
+            {% if first_order.customer_name %}
+            <p class="text-sm text-gray-600 mt-2">ชื่อลูกค้า: {{ first_order.customer_name }}</p>
+            {% endif %}
+            {% if first_order %}
+            <p class="text-xs text-gray-500 mt-1">รหัสออร์เดอร์: #{{ first_order.id }}</p>
+            {% endif %}
         </div>
 
         <!-- รายการสินค้าทั้งหมดในรูปแบบตารางมาตรฐาน -->
         <div class="py-6 space-y-6">
             <div class="flex justify-between items-center text-xs text-gray-500 border-b pb-2">
                 <span class="font-bold">📋 รายการสินค้าทั้งหมด</span>
-                <span>วันที่: {% if table_orders.first %}{{ table_orders.first.created_at|date:"d/m/Y H:i" }} น.{% else %}-{% endif %}</span>
+                <span>วันที่: {% if first_order %}{{ first_order.created_at|date:"d/m/Y H:i" }} น.{% else %}-{% endif %}</span>
             </div>
 
             {% for order in table_orders %}
@@ -72,7 +78,7 @@
                             <td class="py-2.5 font-medium text-gray-800">{{ item.menu_item.name }}</td>
                             <td class="py-2.5 text-center text-gray-600">{{ item.quantity }}</td>
                             <td class="py-2.5 text-right text-gray-600">฿{{ item.price }}</td>
-                            <td class="py-2.5 text-right font-bold text-gray-900">฿<script>document.write({{ item.price }} * {{ item.quantity }});</script></td>
+                            <td class="py-2.5 text-right font-bold text-gray-900">฿{{ item.line_total|floatformat:2 }}</td>
                         </tr>
                         {% endif %}
                         {% endfor %}

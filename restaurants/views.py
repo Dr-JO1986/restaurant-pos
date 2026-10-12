@@ -680,16 +680,30 @@ def merchant_table_receipt(request, slug, table_number):
     order_id = request.GET.get('order_id')
     
     if order_id:
-        table_orders = restaurant.orders.filter(id=order_id, restaurant=restaurant)
+        table_orders = restaurant.orders.filter(
+            id=order_id,
+            restaurant=restaurant,
+            table_number=table_number,
+        ).prefetch_related('items__menu_item')
     else:
-        table_orders = restaurant.orders.filter(table_number=table_number, is_paid=False).order_by('created_at')
-        
+        table_orders = restaurant.orders.filter(
+            table_number=table_number,
+            is_paid=False,
+        ).prefetch_related('items__menu_item').order_by('created_at')
+
+    table_orders = list(table_orders)
+    first_order = table_orders[0] if table_orders else None
+    for order in table_orders:
+        for item in order.items.all():
+            item.line_total = item.price * item.quantity
+
     grand_total = sum(order.total_price for order in table_orders)
 
     context = {
         'restaurant': restaurant,
         'table_number': table_number,
         'table_orders': table_orders,
+        'first_order': first_order,
         'grand_total': grand_total,
     }
     return render(request, 'restaurants/merchant_table_receipt.html', context)
