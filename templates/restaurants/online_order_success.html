@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ยืนยันออร์เดอร์ - {{ restaurant.name }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Prompt', sans-serif; }</style>
+</head>
+<body class="bg-gray-50 text-gray-800 min-h-screen flex items-center justify-center p-4">
+    <main class="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border max-w-md w-full">
+        <div class="w-14 h-14 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">✓</div>
+        <h1 class="text-xl font-bold text-center">ส่งคำสั่งซื้อเรียบร้อยแล้ว</h1>
+        <p class="text-sm text-gray-500 text-center mt-1">{{ restaurant.name }}</p>
+
+        <div class="bg-indigo-50 text-indigo-800 rounded-xl p-4 text-sm mt-6">
+            <p class="font-bold">หมายเลขออร์เดอร์ #{{ order.id }}</p>
+            <p class="mt-1">สถานะชำระเงิน: {{ order.get_payment_status_display }}</p>
+            {% if order.payment_status == 'pending' %}
+            <p class="text-xs mt-2">ร้านกำลังตรวจสอบสลิป ออร์เดอร์จะเข้าครัวหลังร้านยืนยันการชำระเงิน</p>
+            {% elif order.payment_status == 'confirmed' %}
+            <p class="text-xs mt-2">ร้านยืนยันการชำระเงินแล้ว</p>
+            {% elif order.payment_status == 'rejected' %}
+            <p class="text-xs mt-2">ร้านปฏิเสธสลิป กรุณาติดต่อร้านเพื่อดำเนินการต่อ</p>
+            {% endif %}
+            <p>วิธีรับ: รับอาหารที่ร้าน</p>
+            {% if order.pickup_at %}<p>เวลารับที่เลือก: {{ order.pickup_at|date:"d/m/Y H:i" }} น.</p>{% endif %}
+        </div>
+
+        <div class="border rounded-xl p-4 mt-4 text-sm">
+            <p>ชื่อ: {{ order.customer_name }}</p>
+            <p>เบอร์โทร: {{ order.customer_phone }}</p>
+            <ul class="border-t mt-3 pt-3 space-y-2">
+                {% for item in order.items.all %}
+                <li class="flex justify-between gap-3">
+                    <span>{{ item.menu_item.name }} × {{ item.quantity }}</span>
+                    <span>฿{{ item.price }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+            <div class="flex justify-between border-t mt-3 pt-3 font-bold">
+                <span>ยอดรวม</span>
+                <span class="text-indigo-600">฿{{ order.total_price }}</span>
+            </div>
+        </div>
+
+        <a href="{% url 'online_storefront' restaurant.slug %}" class="block w-full bg-indigo-600 hover:bg-indigo-700 text-white text-center font-medium py-3 rounded-xl mt-6 transition">
+            กลับไปหน้าร้าน
+        </a>
+    </main>
+</body>
+</html>

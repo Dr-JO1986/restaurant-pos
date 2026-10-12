@@ -3,6 +3,8 @@ from .views_auth import merchant_login, merchant_logout
 from .views import (
     merchant_dashboard, 
     customer_storefront, place_order, order_success,
+    online_storefront, place_online_order, online_order_success,
+    view_online_payment_slip, review_online_payment, checkout_online_order,
     edit_menu_item, delete_menu_item, 
     edit_category, delete_category,
     merchant_orders, update_order_status,
@@ -30,6 +32,11 @@ urlpatterns = [
     path('store/<slug:slug>/table/<str:table_number>/', customer_storefront, name='customer_storefront_table'),
     path('store/<slug:slug>/table/<str:table_number>/order/', place_order, name='place_order_table'),
     path('store/<slug:slug>/table/<str:table_number>/success/<int:order_id>/', order_success, name='order_success_table'),
+    path('store/<slug:slug>/online/', online_storefront, name='online_storefront'),
+    path('store/<slug:slug>/online/order/', place_online_order, name='place_online_order'),
+    path('store/<slug:slug>/online/success/<uuid:token>/', online_order_success, name='online_order_success'),
+    path('store/<slug:slug>/manage/online-order/<int:order_id>/payment-slip/', view_online_payment_slip, name='view_online_payment_slip'),
+    path('store/<slug:slug>/manage/online-order/<int:order_id>/review-payment/', review_online_payment, name='review_online_payment'),
 
     # API สำหรับดึงสถานะออร์เดอร์แบบ Real-time (AJAX)
     path('store/<slug:slug>/api/order/<int:order_id>/status/', api_order_status, name='api_order_status'),
@@ -47,6 +54,7 @@ urlpatterns = [
 
     path('store/<slug:slug>/table/<str:table_number>/bill/', table_bill_summary, name='table_bill_summary'),
     path('store/<slug:slug>/manage/table/<str:table_number>/checkout/', checkout_table_order, name='checkout_table_order'),
+    path('store/<slug:slug>/manage/online-order/<int:order_id>/collect/', checkout_online_order, name='checkout_online_order'),
 
     path('store/<slug:slug>/manage/table/<str:table_number>/receipt/', merchant_table_receipt, name='merchant_table_receipt'),
 

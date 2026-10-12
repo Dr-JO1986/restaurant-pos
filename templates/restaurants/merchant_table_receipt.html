@@ -25,7 +25,11 @@
             <p class="text-xs text-gray-500 mt-1">ใบเสร็จรับเงิน / สรุปยอดขาย</p>
             
             <div class="inline-block bg-indigo-50 text-indigo-700 px-4 py-1.5 rounded-full text-xs font-bold mt-3">
+                {% if table_orders.first.order_type == 'pickup' %}
+                🛍️ ออร์เดอร์รับที่ร้าน
+                {% else %}
                 📍 โต๊ะ / โซน: {{ table_number }}
+                {% endif %}
             </div>
         </div>
 
@@ -42,6 +46,14 @@
                     <span>ออร์เดอร์ #{{ order.id }} {% if order.customer_name %}({{ order.customer_name }}){% endif %}</span>
                     <span class="text-emerald-600 font-semibold">ชำระเงินแล้ว</span>
                 </div>
+                {% if order.order_type == 'pickup' %}
+                <div class="text-xs text-gray-600">
+                    <p>เวลารับที่นัด: {{ order.pickup_at|date:"d/m/Y H:i" }} น.</p>
+                    {% if order.payment_slip %}
+                    <a href="{% url 'view_online_payment_slip' restaurant.slug order.id %}" target="_blank" rel="noopener" class="inline-block text-indigo-600 underline mt-1">เปิดดูสลิปโอนเงิน</a>
+                    {% endif %}
+                </div>
+                {% endif %}
 
                 <!-- ตารางแสดงรายการสินค้า -->
                 <table class="w-full text-left text-xs">

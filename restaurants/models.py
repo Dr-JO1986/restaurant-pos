@@ -1,6 +1,39 @@
 from django.db import models
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.utils import timezone
+from pathlib import Path
+from PIL import Image, UnidentifiedImageError
+import uuid
+
+
+def validate_payment_slip(uploaded_file):
+    if uploaded_file.size > 5 * 1024 * 1024:
+        raise ValidationError("ไฟล์สลิปต้องมีขนาดไม่เกิน 5 MB")
+
+    try:
+        with Image.open(uploaded_file) as image:
+            if image.format not in {"JPEG", "PNG", "WEBP"}:
+                raise ValidationError("รองรับไฟล์สลิป JPG, PNG หรือ WEBP เท่านั้น")
+            if image.width * image.height > 25_000_000:
+                raise ValidationError("ขนาดภาพสลิปใหญ่เกินไป")
+            expected_extensions = {
+                'JPEG': {'.jpg', '.jpeg'},
+                'PNG': {'.png'},
+                'WEBP': {'.webp'},
+            }
+            if Path(uploaded_file.name).suffix.lower() not in expected_extensions[image.format]:
+                raise ValidationError("นามสกุลไฟล์ไม่ตรงกับชนิดรูปภาพ")
+            image.verify()
+    except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError) as error:
+        raise ValidationError("ไฟล์สลิปไม่ใช่รูปภาพที่ถูกต้อง") from error
+    finally:
+        uploaded_file.seek(0)
+
+
+def payment_slip_upload_path(instance, filename):
+    extension = Path(filename).suffix.lower()
+    return f"payment_slips/{instance.restaurant.slug}/{uuid.uuid4().hex}{extension}"
 
 # เลือกประเภทธุรกิจที่ร้านค้าสามารถเลือกได้ตอนสมัครหรือตั้งค่า
 RESTAURANT_TYPES = [
@@ -20,6 +53,9 @@ class Restaurant(models.Model):
     owner_name = models.CharField(max_length=255, verbose_name="ชื่อเจ้าของร้าน")
     phone = models.CharField(max_length=20, verbose_name="เบอร์โทรศัพท์")
     address = models.TextField(blank=True, null=True, verbose_name="ที่อยู่ร้าน")
+    bank_name = models.CharField(max_length=100, blank=True, verbose_name="ธนาคารรับโอน")
+    bank_account_name = models.CharField(max_length=100, blank=True, verbose_name="ชื่อบัญชี")
+    bank_account_number = models.CharField(max_length=50, blank=True, verbose_name="เลขบัญชี")
     is_active = models.BooleanField(default=True, verbose_name="สถานะเปิดใช้งาน")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="วันที่สมัคร")
 
@@ -46,18 +82,45 @@ class MenuItem(models.Model):
         return f"{self.name} - {self.price} บาท"
 
 class Order(models.Model):
+    ORDER_TYPE_CHOICES = (
+        ('table', 'รับประทานที่ร้าน'),
+        ('pickup', 'สั่งออนไลน์ รับที่ร้าน'),
+    )
     STATUS_CHOICES = (
         ('pending', 'รอดำเนินการ'),
         ('cooking', 'กำลังทำอาหาร'),
         ('completed', 'เสิร์ฟแล้ว/เสร็จสิ้น'),
         ('cancelled', 'ยกเลิก'),
     )
+    PAYMENT_STATUS_CHOICES = (
+        ('not_required', 'ไม่ต้องตรวจสอบ'),
+        ('pending', 'รอตรวจสอบสลิป'),
+        ('confirmed', 'ยืนยันการชำระเงินแล้ว'),
+        ('rejected', 'ปฏิเสธสลิป'),
+    )
     restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE, related_name='orders')
     table_number = models.CharField(max_length=50, verbose_name="เลขโต๊ะ / โซน")
+    order_type = models.CharField(max_length=20, choices=ORDER_TYPE_CHOICES, default='table', verbose_name="ประเภทออร์เดอร์")
     customer_name = models.CharField(max_length=100, blank=True, null=True, verbose_name="ชื่อผู้สั่ง")
+    customer_phone = models.CharField(max_length=20, blank=True, verbose_name="เบอร์โทรผู้สั่ง")
+    public_token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     total_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     is_paid = models.BooleanField(default=False, verbose_name="ชำระเงินแล้วหรือยัง") # <--- เพิ่มฟิลด์ชำระเงิน
+    pickup_at = models.DateTimeField(null=True, blank=True, verbose_name="เวลารับสินค้า")
+    payment_slip = models.FileField(
+        upload_to=payment_slip_upload_path,
+        blank=True,
+        validators=[validate_payment_slip],
+        verbose_name="สลิปโอนเงิน",
+    )
+    payment_status = models.CharField(
+        max_length=20,
+        choices=PAYMENT_STATUS_CHOICES,
+        default='not_required',
+        verbose_name="สถานะตรวจสอบการชำระเงิน",
+    )
+    is_collected = models.BooleanField(default=False, verbose_name="รับสินค้าแล้ว")
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -121,4 +184,3 @@ class ContactInquiry(models.Model):
 
     def __str__(self):
         return f"{self.contact_name} ({self.restaurant_name}) - {self.get_package_display()}"
-

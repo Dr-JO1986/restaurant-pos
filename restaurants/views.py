@@ -1,14 +1,23 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
-from .models import Restaurant, MenuItem, Category, Order, OrderItem, Table, TransactionRecord, ContactInquiry
+from django.contrib import messages
+from django.core.exceptions import ValidationError
+from django.db import transaction
+from django.http import FileResponse, Http404, HttpResponseForbidden, JsonResponse
+from django.utils.dateparse import parse_datetime
+from pathlib import Path
+from .models import (
+    Restaurant, MenuItem, Category, Order, OrderItem, Table, TransactionRecord,
+    ContactInquiry, validate_payment_slip,
+)
 from .forms import MenuItemForm, CategoryForm
-from django.http import JsonResponse
 from django.utils import timezone
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.db.models.functions import ExtractYear, ExtractMonth, ExtractDay
 from django.db.models.functions import TruncDate
 from django.db.models import Sum, F
+from django.views.decorators.http import require_POST
 
 
 def landing_page(request):
@@ -50,7 +59,20 @@ def merchant_dashboard(request, slug):
     menu_form.fields['category'].queryset = categories
 
     if request.method == 'POST':
-        if 'add_menu' in request.POST:
+        if 'save_payment_details' in request.POST:
+            bank_name = request.POST.get('bank_name', '').strip()
+            account_name = request.POST.get('bank_account_name', '').strip()
+            account_number = request.POST.get('bank_account_number', '').strip()
+            if len(bank_name) > 100 or len(account_name) > 100 or len(account_number) > 50:
+                messages.error(request, 'ข้อมูลบัญชีธนาคารยาวเกินกำหนด กรุณาตรวจสอบอีกครั้ง')
+            else:
+                restaurant.bank_name = bank_name
+                restaurant.bank_account_name = account_name
+                restaurant.bank_account_number = account_number
+                restaurant.save(update_fields=['bank_name', 'bank_account_name', 'bank_account_number'])
+                messages.success(request, 'บันทึกข้อมูลบัญชีรับโอนแล้ว')
+            return redirect('merchant_dashboard', slug=restaurant.slug)
+        elif 'add_menu' in request.POST:
             menu_form = MenuItemForm(request.POST, request.FILES)
             if menu_form.is_valid():
                 menu_item = menu_form.save(commit=False)
@@ -143,6 +165,199 @@ def customer_storefront(request, slug, table_number):
     }
     return render(request, 'restaurants/storefront.html', context)
 
+
+def online_storefront(request, slug):
+    restaurant = get_object_or_404(Restaurant, slug=slug, is_active=True)
+    return render(request, 'restaurants/online_storefront.html', {
+        'restaurant': restaurant,
+        'categories': restaurant.categories.all(),
+        'menu_items': restaurant.menu_items.filter(is_available=True).select_related('category'),
+        'can_accept_online_orders': bool(
+            restaurant.bank_name
+            and restaurant.bank_account_name
+            and restaurant.bank_account_number
+        ),
+    })
+
+
+@require_POST
+def place_online_order(request, slug):
+    restaurant = get_object_or_404(Restaurant, slug=slug, is_active=True)
+    categories = restaurant.categories.all()
+    menu_items = list(restaurant.menu_items.filter(is_available=True).select_related('category'))
+    customer_name = request.POST.get('customer_name', '').strip()
+    customer_phone = request.POST.get('customer_phone', '').strip()
+    pickup_at_value = request.POST.get('pickup_at', '').strip()
+    payment_slip = request.FILES.get('payment_slip')
+    selected_items = []
+    pickup_at = None
+    error = None
+
+    if not (restaurant.bank_name and restaurant.bank_account_name and restaurant.bank_account_number):
+        error = 'ร้านยังไม่ได้ตั้งค่าบัญชีรับโอน กรุณาติดต่อร้านก่อนสั่งซื้อ'
+    elif not customer_name or len(customer_name) > 100:
+        error = 'กรุณาระบุชื่อผู้สั่ง (ไม่เกิน 100 ตัวอักษร)'
+    elif len(customer_phone) < 7 or len(customer_phone) > 20:
+        error = 'กรุณาระบุเบอร์โทรศัพท์ให้ถูกต้อง'
+    elif not payment_slip:
+        error = 'กรุณาแนบสลิปโอนเงินก่อนยืนยันออร์เดอร์'
+    elif not pickup_at_value:
+        error = 'กรุณาเลือกวันที่และเวลาที่ต้องการรับสินค้า'
+    else:
+        pickup_at = parse_datetime(pickup_at_value)
+        if pickup_at is None:
+            error = 'รูปแบบวันที่และเวลารับสินค้าไม่ถูกต้อง'
+        else:
+            if timezone.is_naive(pickup_at):
+                pickup_at = timezone.make_aware(pickup_at, timezone.get_current_timezone())
+            if pickup_at <= timezone.now():
+                error = 'เวลารับสินค้าต้องเป็นเวลาในอนาคต'
+
+        if not error:
+            try:
+                validate_payment_slip(payment_slip)
+            except ValidationError as validation_error:
+                error = validation_error.messages[0]
+
+        if not error:
+            for menu_item in menu_items:
+                raw_quantity = request.POST.get(f'quantity_{menu_item.id}', '0')
+                try:
+                    quantity = int(raw_quantity)
+                except (TypeError, ValueError):
+                    error = 'จำนวนสินค้าไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง'
+                    break
+                if quantity < 0 or quantity > 99:
+                    error = 'จำนวนสินค้าต้องอยู่ระหว่าง 0 ถึง 99 ชิ้น'
+                    break
+                if quantity:
+                    selected_items.append((menu_item, quantity))
+
+            if not error and not selected_items:
+                error = 'กรุณาเลือกเมนูอย่างน้อย 1 รายการ'
+
+    if error:
+        for menu_item in menu_items:
+            menu_item.order_quantity = request.POST.get(f'quantity_{menu_item.id}', '0')
+        return render(request, 'restaurants/online_storefront.html', {
+            'restaurant': restaurant,
+            'categories': categories,
+            'menu_items': menu_items,
+            'can_accept_online_orders': bool(
+                restaurant.bank_name
+                and restaurant.bank_account_name
+                and restaurant.bank_account_number
+            ),
+            'error': error,
+            'customer_name': customer_name,
+            'customer_phone': customer_phone,
+            'pickup_at': pickup_at_value,
+        }, status=400)
+
+    with transaction.atomic():
+        order = Order.objects.create(
+            restaurant=restaurant,
+            table_number='ONLINE',
+            order_type='pickup',
+            customer_name=customer_name,
+            customer_phone=customer_phone,
+            pickup_at=pickup_at,
+            payment_slip=payment_slip,
+            payment_status='pending',
+            status='pending',
+            total_price=0,
+        )
+        order.table_number = f'ONLINE-{order.id}'
+        total_price = 0
+        for menu_item, quantity in selected_items:
+            OrderItem.objects.create(
+                order=order,
+                menu_item=menu_item,
+                quantity=quantity,
+                price=menu_item.price,
+                status='pending',
+            )
+            total_price += menu_item.price * quantity
+        order.total_price = total_price
+        order.save(update_fields=['table_number', 'total_price'])
+
+    return redirect('online_order_success', slug=restaurant.slug, token=order.public_token)
+
+
+def online_order_success(request, slug, token):
+    restaurant = get_object_or_404(Restaurant, slug=slug, is_active=True)
+    order = get_object_or_404(
+        Order,
+        restaurant=restaurant,
+        public_token=token,
+        order_type='pickup',
+    )
+    return render(request, 'restaurants/online_order_success.html', {
+        'restaurant': restaurant,
+        'order': order,
+    })
+
+
+@login_required(login_url='/login/')
+def view_online_payment_slip(request, slug, order_id):
+    restaurant = get_object_or_404(Restaurant, slug=slug)
+    if restaurant.user != request.user and not request.user.is_superuser:
+        return HttpResponseForbidden()
+
+    order = get_object_or_404(
+        Order,
+        id=order_id,
+        restaurant=restaurant,
+        order_type='pickup',
+    )
+    if not order.payment_slip:
+        raise Http404
+
+    content_type = {
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.png': 'image/png',
+        '.webp': 'image/webp',
+    }.get(Path(order.payment_slip.name).suffix.lower(), 'application/octet-stream')
+    response = FileResponse(order.payment_slip.open('rb'), content_type=content_type)
+    response['Cache-Control'] = 'private, no-store'
+    response['X-Content-Type-Options'] = 'nosniff'
+    return response
+
+
+@login_required(login_url='/login/')
+@require_POST
+def review_online_payment(request, slug, order_id):
+    restaurant = get_object_or_404(Restaurant, slug=slug)
+    if restaurant.user != request.user and not request.user.is_superuser:
+        return HttpResponseForbidden()
+
+    with transaction.atomic():
+        order = get_object_or_404(
+            Order.objects.select_for_update(),
+            id=order_id,
+            restaurant=restaurant,
+            order_type='pickup',
+            payment_status='pending',
+            is_paid=False,
+        )
+        action = request.POST.get('action')
+        if action == 'confirm':
+            order.payment_status = 'confirmed'
+            order.is_paid = True
+            order.save(update_fields=['payment_status', 'is_paid'])
+            messages.success(request, f'ยืนยันยอดโอนของออร์เดอร์ #{order.id} แล้ว ออร์เดอร์จะแสดงในรายการครัว')
+        elif action == 'reject':
+            order.payment_status = 'rejected'
+            order.status = 'cancelled'
+            order.save(update_fields=['payment_status', 'status'])
+            messages.warning(request, f'ปฏิเสธสลิปของออร์เดอร์ #{order.id} แล้ว')
+        else:
+            messages.error(request, 'ไม่พบคำสั่งตรวจสอบสลิปที่ถูกต้อง')
+
+    return redirect('merchant_orders', slug=restaurant.slug)
+
+
 def place_order(request, slug, table_number):
     restaurant = get_object_or_404(Restaurant, slug=slug)
     
@@ -207,22 +422,30 @@ def merchant_orders(request, slug):
     if restaurant.user != request.user and not request.user.is_superuser:
         return render(request, 'restaurants/403.html', status=403)
 
-    # 1. โต๊ะที่กำลังใช้บริการอยู่ (Active Tables)
-    unpaid_orders = restaurant.orders.filter(is_paid=False).order_by('-created_at')
+    payment_review_orders = restaurant.orders.filter(
+        order_type='pickup',
+        payment_status='pending',
+        is_paid=False,
+    ).order_by('created_at')
+    unpaid_orders = restaurant.orders.filter(
+        Q(order_type='table', is_paid=False)
+        | Q(order_type='pickup', payment_status='confirmed', is_collected=False)
+    ).order_by('-created_at')
     
     active_tables_dict = {}
     for order in unpaid_orders:
-        t_num = order.table_number
-        if t_num not in active_tables_dict:
-            active_tables_dict[t_num] = {
-                'table_number': t_num,
+        group_key = (order.order_type, order.table_number)
+        if group_key not in active_tables_dict:
+            active_tables_dict[group_key] = {
+                'table_number': order.table_number,
+                'order_type': order.order_type,
                 'orders': [],
                 'total_amount': 0,
                 'order_count': 0,
             }
-        active_tables_dict[t_num]['orders'].append(order)
-        active_tables_dict[t_num]['total_amount'] += order.total_price
-        active_tables_dict[t_num]['order_count'] += 1
+        active_tables_dict[group_key]['orders'].append(order)
+        active_tables_dict[group_key]['total_amount'] += order.total_price
+        active_tables_dict[group_key]['order_count'] += 1
 
     active_tables = list(active_tables_dict.values())
 
@@ -250,6 +473,7 @@ def merchant_orders(request, slug):
     context = {
         'restaurant': restaurant,
         'active_tables': active_tables,
+        'payment_review_orders': payment_review_orders,
         'paid_orders_today': paid_orders_today,
         'daily_total_sales': daily_total_sales,
         'search_query': search_query,
@@ -261,10 +485,16 @@ def merchant_orders(request, slug):
 def update_order_status(request, slug, order_id):
     restaurant = get_object_or_404(Restaurant, slug=slug)
     order = get_object_or_404(Order, id=order_id, restaurant=restaurant)
+
+    if order.order_type == 'pickup' and restaurant.user != request.user and not request.user.is_superuser:
+        return HttpResponseForbidden()
     
     if request.method == 'POST':
         new_status = request.POST.get('status')
-        if new_status in dict(Order.STATUS_CHOICES):
+        if (
+            new_status in dict(Order.STATUS_CHOICES)
+            and (order.order_type != 'pickup' or order.payment_status == 'confirmed')
+        ):
             order.status = new_status
             order.save()
             
@@ -298,7 +528,28 @@ def checkout_table_order(request, slug, table_number):
     if request.method == 'POST':
         orders.update(is_paid=True, status='completed')
         return redirect('merchant_orders', slug=restaurant.slug)
-        
+    return redirect('merchant_orders', slug=restaurant.slug)
+
+
+@login_required(login_url='/login/')
+@require_POST
+def checkout_online_order(request, slug, order_id):
+    restaurant = get_object_or_404(Restaurant, slug=slug)
+    if restaurant.user != request.user and not request.user.is_superuser:
+        return HttpResponseForbidden()
+
+    order = get_object_or_404(
+        Order,
+        id=order_id,
+        restaurant=restaurant,
+        order_type='pickup',
+        payment_status='confirmed',
+        is_collected=False,
+    )
+    order.is_collected = True
+    order.is_paid = True
+    order.status = 'completed'
+    order.save(update_fields=['is_collected', 'is_paid', 'status'])
     return redirect('merchant_orders', slug=restaurant.slug)
 
 
@@ -366,6 +617,13 @@ def merchant_table_receipt(request, slug, table_number):
 def update_order_item_status(request, slug, item_id):
     restaurant = get_object_or_404(Restaurant, slug=slug)
     item = get_object_or_404(OrderItem, id=item_id, order__restaurant=restaurant)
+
+    if item.order.order_type == 'pickup' and (
+        restaurant.user != request.user and not request.user.is_superuser
+    ):
+        return render(request, 'restaurants/403.html', status=403)
+    if item.order.order_type == 'pickup' and item.order.payment_status != 'confirmed':
+        return redirect('merchant_orders', slug=restaurant.slug)
     
     # ป้องกันไม่ให้แก้ไขอะไรต่อได้อีกหากรายการนั้นถูกยกเลิกไปแล้ว
     if item.status == 'cancelled':
@@ -429,12 +687,16 @@ def merchant_table_status_manage(request, slug, table_number):
     if restaurant.user != request.user and not request.user.is_superuser:
         return render(request, 'restaurants/403.html', status=403)
 
-    table_orders = restaurant.orders.filter(table_number=table_number, is_paid=False).order_by('created_at')
+    table_orders = restaurant.orders.filter(table_number=table_number).filter(
+        Q(order_type='table', is_paid=False)
+        | Q(order_type='pickup', payment_status='confirmed', is_collected=False)
+    ).order_by('created_at')
 
     context = {
         'restaurant': restaurant,
         'table_number': table_number,
         'table_orders': table_orders,
+        'is_pickup': table_orders.filter(order_type='pickup').exists(),
     }
     return render(request, 'restaurants/merchant_table_status.html', context)
 

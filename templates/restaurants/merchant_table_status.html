@@ -12,8 +12,13 @@
     <div class="max-w-2xl mx-auto bg-white rounded-3xl shadow-sm border p-6 space-y-6">
         <div class="flex justify-between items-center border-b pb-4">
             <div>
+                {% if is_pickup %}
+                <h1 class="text-xl font-bold text-indigo-600">⚙️ จัดการสถานะออร์เดอร์รับที่ร้าน</h1>
+                <p class="text-xs text-gray-500">อัปเดตสถานะอาหารตามเวลารับที่ลูกค้านัดไว้</p>
+                {% else %}
                 <h1 class="text-xl font-bold text-indigo-600">⚙️ จัดการสถานะออร์เดอร์: โต๊ะ {{ table_number }}</h1>
                 <p class="text-xs text-gray-500">อัปเดตสถานะการทำรายการของลูกค้าโต๊ะนี้</p>
+                {% endif %}
             </div>
             <a href="{% url 'merchant_orders' restaurant.slug %}" class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs px-3 py-2 rounded-xl transition font-medium">
                 ⬅️ กลับหน้าหลัก
@@ -27,6 +32,9 @@
                     <span>ออร์เดอร์ #{{ order.id }} {% if order.customer_name %}({{ order.customer_name }}){% endif %}</span>
                     <span class="text-indigo-600">{{ order.get_status_display }}</span>
                 </div>
+                {% if order.order_type == 'pickup' %}
+                <p class="text-xs text-gray-600">📞 {{ order.customer_phone }} · 🕒 รับ {{ order.pickup_at|date:"d/m/Y H:i" }} น.</p>
+                {% endif %}
 
                 <ul class="space-y-3">
                     {% for item in order.items.all %}
