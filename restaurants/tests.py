@@ -164,11 +164,18 @@ class OnlinePickupOrderTests(TestCase):
 
         response = self.client.post(
             reverse('edit_category', args=[self.restaurant.slug, self.category.id]),
-            {'category_name': 'อาหารจานหลัก'},
+            {'name': 'อาหารจานหลัก'},
         )
         self.assertRedirects(response, dashboard_url)
         self.category.refresh_from_db()
         self.assertEqual(self.category.name, 'อาหารจานหลัก')
+
+        response = self.client.post(
+            reverse('edit_category', args=[self.restaurant.slug, self.category.id]),
+            {'name': ' '},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'ฟิลด์นี้จำเป็น', html=False)
 
         category_to_delete = Category.objects.create(restaurant=self.restaurant, name='ของหวาน')
         MenuItem.objects.create(
@@ -196,6 +203,20 @@ class OnlinePickupOrderTests(TestCase):
         self.assertEqual(image_response.status_code, 200)
         self.assertEqual(image_response['Content-Type'], 'image/png')
         image_response.close()
+
+    def test_customer_menu_pages_use_image_route(self):
+        self.menu_item.image.save('menu.png', self.create_slip_upload(), save=True)
+        image_url = reverse('menu_item_image', args=[self.restaurant.slug, self.menu_item.id])
+
+        table_response = self.client.get(
+            reverse('customer_storefront_table', args=[self.restaurant.slug, 'A1']),
+        )
+        online_response = self.client.get(
+            reverse('online_storefront', args=[self.restaurant.slug]),
+        )
+
+        self.assertContains(table_response, image_url)
+        self.assertContains(online_response, image_url)
 
     def test_customer_can_download_online_order_receipt_as_image(self):
         self.client.post(

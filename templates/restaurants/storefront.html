@@ -169,7 +169,7 @@
                 {% for item in menu_items %}
                 <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex gap-4 items-center">
                     {% if item.image %}
-                    <img src="{{ item.image.url }}" alt="{{ item.name }}" class="w-24 h-24 object-cover rounded-xl">
+                    <img src="{% url 'menu_item_image' restaurant.slug item.id %}" alt="{{ item.name }}" class="w-24 h-24 object-cover rounded-xl">
                     {% else %}
                     <div class="w-24 h-24 bg-gray-100 rounded-xl flex items-center justify-center text-xs text-gray-400">ไม่มีรูป</div>
                     {% endif %}

@@ -143,15 +143,14 @@ def edit_category(request, slug, pk):
     if restaurant.user != request.user and not request.user.is_superuser:
         return HttpResponseForbidden()
     category = get_object_or_404(Category, pk=pk, restaurant=restaurant)
-    
-    if request.method == 'POST':
-        name = request.POST.get('category_name', '').strip()
-        if name and len(name) <= 150:
-            category.name = name
-            category.save()
-            return redirect('merchant_dashboard', slug=restaurant.slug)
-    
-    context = {'restaurant': restaurant, 'category': category}
+
+    form = CategoryForm(request.POST or None, instance=category)
+    if request.method == 'POST' and form.is_valid():
+        form.save()
+        messages.success(request, 'บันทึกชื่อหมวดหมู่แล้ว')
+        return redirect('merchant_dashboard', slug=restaurant.slug)
+
+    context = {'restaurant': restaurant, 'category': category, 'form': form}
     return render(request, 'restaurants/edit_category.html', context)
 
 @login_required(login_url='/login/')
@@ -161,7 +160,9 @@ def delete_category(request, slug, pk):
     if restaurant.user != request.user and not request.user.is_superuser:
         return HttpResponseForbidden()
     category = get_object_or_404(Category, pk=pk, restaurant=restaurant)
+    category_name = category.name
     category.delete()
+    messages.success(request, f'ลบหมวดหมู่ "{category_name}" แล้ว')
     return redirect('merchant_dashboard', slug=restaurant.slug)
 
 
