@@ -17,7 +17,7 @@
                 <button type="submit" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 rounded-lg transition duration-200">
                     บันทึกการแก้ไข
                 </button>
-                <a href="/store/{{ restaurant.slug }}/" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2 rounded-lg text-center transition duration-200">
+                <a href="{% url 'merchant_dashboard' restaurant.slug %}" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2 rounded-lg text-center transition duration-200">
                     ยกเลิก
                 </a>
             </div>

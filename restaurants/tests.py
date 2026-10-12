@@ -204,6 +204,17 @@ class OnlinePickupOrderTests(TestCase):
         self.assertEqual(image_response['Content-Type'], 'image/png')
         image_response.close()
 
+    def test_edit_menu_cancel_link_returns_to_merchant_dashboard(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse('edit_menu_item', args=[self.restaurant.slug, self.menu_item.id]),
+        )
+
+        dashboard_url = reverse('merchant_dashboard', args=[self.restaurant.slug])
+        self.assertContains(response, f'href="{dashboard_url}"')
+        self.assertEqual(self.client.get(dashboard_url).status_code, 200)
+
     def test_customer_menu_pages_use_image_route(self):
         self.menu_item.image.save('menu.png', self.create_slip_upload(), save=True)
         image_url = reverse('menu_item_image', args=[self.restaurant.slug, self.menu_item.id])
