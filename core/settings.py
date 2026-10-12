@@ -137,5 +137,10 @@ MAILERS = {
     },
 }
 MEDIA_URL = '/media/'
-MEDIA_ROOT = os.environ.get('MEDIA_ROOT', os.path.join(BASE_DIR, 'media'))
+DEFAULT_MEDIA_ROOT = (
+    '/var/data/media'
+    if os.environ.get('RENDER') == 'true'
+    else os.path.join(BASE_DIR, 'media')
+)
+MEDIA_ROOT = os.environ.get('MEDIA_ROOT', DEFAULT_MEDIA_ROOT)
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
