@@ -340,3 +340,45 @@ class OnlinePickupOrderTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 404)
+
+    def test_paid_order_history_shows_customer_items_total_and_online_slip(self):
+        self.client.force_login(self.user)
+        self.client.post(
+            reverse('place_online_order', args=[self.restaurant.slug]),
+            self.valid_order_data(),
+        )
+        online_order = Order.objects.get(restaurant=self.restaurant)
+        online_order.payment_status = 'confirmed'
+        online_order.is_paid = True
+        online_order.save(update_fields=['payment_status', 'is_paid'])
+
+        table_order = Order.objects.create(
+            restaurant=self.restaurant,
+            table_number='A1',
+            order_type='table',
+            customer_name='ลูกค้าหน้าร้าน',
+            total_price=Decimal('50.00'),
+            is_paid=True,
+        )
+        OrderItem.objects.create(
+            order=table_order,
+            menu_item=self.menu_item,
+            quantity=1,
+            price=self.menu_item.price,
+        )
+
+        response = self.client.get(reverse('merchant_orders', args=[self.restaurant.slug]))
+
+        self.assertContains(response, 'สมชาย')
+        self.assertContains(response, 'ข้าวผัด × 2')
+        self.assertContains(response, '฿100.00')
+        self.assertContains(
+            response,
+            reverse('view_online_payment_slip', args=[self.restaurant.slug, online_order.id]),
+        )
+        self.assertContains(response, 'ลูกค้าหน้าร้าน')
+        self.assertContains(response, 'A1')
+        self.assertContains(
+            response,
+            f"{reverse('merchant_table_receipt', args=[self.restaurant.slug, table_order.table_number])}?order_id={table_order.id}",
+        )

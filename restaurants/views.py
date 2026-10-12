@@ -530,7 +530,9 @@ def merchant_orders(request, slug):
     active_tables = list(active_tables_dict.values())
 
     # 2. ประวัติบิลที่ชำระเงินแล้ว พร้อมระบบค้นหา และ Pagination (15 รายการต่อหน้า)
-    paid_orders_list = restaurant.orders.filter(is_paid=True).order_by('-created_at')
+    paid_orders_list = restaurant.orders.filter(is_paid=True).prefetch_related(
+        'items__menu_item',
+    ).order_by('-created_at')
     
     search_query = request.GET.get('q', '').strip()
     if search_query:
