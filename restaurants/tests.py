@@ -314,3 +314,29 @@ class OnlinePickupOrderTests(TestCase):
             ).status_code,
             403,
         )
+
+    def test_missing_online_payment_slip_returns_not_found_instead_of_server_error(self):
+        self.client.force_login(self.user)
+        self.client.post(
+            reverse('place_online_order', args=[self.restaurant.slug]),
+            self.valid_order_data(),
+        )
+        order = Order.objects.get(restaurant=self.restaurant)
+        order.payment_slip.storage.delete(order.payment_slip.name)
+
+        response = self.client.get(
+            reverse('view_online_payment_slip', args=[self.restaurant.slug, order.id]),
+        )
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_missing_menu_image_returns_not_found_instead_of_server_error(self):
+        self.menu_item.image.save('menu.png', self.create_slip_upload(), save=True)
+        image_name = self.menu_item.image.name
+        self.menu_item.image.storage.delete(image_name)
+
+        response = self.client.get(
+            reverse('menu_item_image', args=[self.restaurant.slug, self.menu_item.id]),
+        )
+
+        self.assertEqual(response.status_code, 404)

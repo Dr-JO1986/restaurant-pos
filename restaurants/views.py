@@ -125,6 +125,8 @@ def menu_item_image(request, slug, pk):
     menu_item = get_object_or_404(MenuItem, pk=pk, restaurant=restaurant)
     if not menu_item.image:
         raise Http404
+    if not menu_item.image.storage.exists(menu_item.image.name):
+        raise Http404("ไม่พบไฟล์รูปภาพเมนูในพื้นที่จัดเก็บ")
 
     content_type = {
         '.jpg': 'image/jpeg',
@@ -132,7 +134,11 @@ def menu_item_image(request, slug, pk):
         '.png': 'image/png',
         '.webp': 'image/webp',
     }.get(Path(menu_item.image.name).suffix.lower(), 'application/octet-stream')
-    response = FileResponse(menu_item.image.open('rb'), content_type=content_type)
+    try:
+        image_file = menu_item.image.open('rb')
+    except FileNotFoundError as error:
+        raise Http404("ไม่พบไฟล์รูปภาพเมนูในพื้นที่จัดเก็บ") from error
+    response = FileResponse(image_file, content_type=content_type)
     response['X-Content-Type-Options'] = 'nosniff'
     return response
 
@@ -379,7 +385,9 @@ def view_online_payment_slip(request, slug, order_id):
         order_type='pickup',
     )
     if not order.payment_slip:
-        raise Http404
+        raise Http404("ออร์เดอร์นี้ไม่มีไฟล์สลิปโอนเงิน")
+    if not order.payment_slip.storage.exists(order.payment_slip.name):
+        raise Http404("ไม่พบไฟล์สลิปโอนเงินในพื้นที่จัดเก็บ")
 
     content_type = {
         '.jpg': 'image/jpeg',
@@ -387,7 +395,11 @@ def view_online_payment_slip(request, slug, order_id):
         '.png': 'image/png',
         '.webp': 'image/webp',
     }.get(Path(order.payment_slip.name).suffix.lower(), 'application/octet-stream')
-    response = FileResponse(order.payment_slip.open('rb'), content_type=content_type)
+    try:
+        slip_file = order.payment_slip.open('rb')
+    except FileNotFoundError as error:
+        raise Http404("ไม่พบไฟล์สลิปโอนเงินในพื้นที่จัดเก็บ") from error
+    response = FileResponse(slip_file, content_type=content_type)
     response['Cache-Control'] = 'private, no-store'
     response['X-Content-Type-Options'] = 'nosniff'
     return response
