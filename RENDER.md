@@ -6,7 +6,8 @@ storage. Render's web-service filesystem is otherwise replaced during deploys.
 For the current web service:
 
 1. In Render, open the web service and add a Persistent Disk. Use `/var/data`
-   as its mount path. Persistent disks require a paid service plan.
+   as its mount path (do not mount it at `/var/data/media`, because that is the
+   application's media subdirectory). Persistent disks require a paid service plan.
 2. Redeploy the service after the disk is attached.
 3. In the service's Environment settings, set `MEDIA_ROOT` to
    `/var/data/media`, then save and redeploy if Render requests it.
