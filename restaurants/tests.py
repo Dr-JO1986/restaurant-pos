@@ -341,6 +341,18 @@ class OnlinePickupOrderTests(TestCase):
 
         self.assertEqual(response.status_code, 404)
 
+    def test_bundled_menu_image_loads_when_media_root_is_separate(self):
+        self.menu_item.image = 'menu_images/OIP.jpg'
+        self.menu_item.save(update_fields=['image'])
+
+        response = self.client.get(
+            reverse('menu_item_image', args=[self.restaurant.slug, self.menu_item.id]),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'image/jpeg')
+        response.close()
+
     def test_paid_order_history_has_six_columns_and_links_to_receipt(self):
         self.client.force_login(self.user)
         self.client.post(

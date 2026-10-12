@@ -1,4 +1,5 @@
 from django.shortcuts import render, get_object_or_404, redirect
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.exceptions import ValidationError
@@ -125,8 +126,6 @@ def menu_item_image(request, slug, pk):
     menu_item = get_object_or_404(MenuItem, pk=pk, restaurant=restaurant)
     if not menu_item.image:
         raise Http404
-    if not menu_item.image.storage.exists(menu_item.image.name):
-        raise Http404("ไม่พบไฟล์รูปภาพเมนูในพื้นที่จัดเก็บ")
 
     content_type = {
         '.jpg': 'image/jpeg',
@@ -134,10 +133,23 @@ def menu_item_image(request, slug, pk):
         '.png': 'image/png',
         '.webp': 'image/webp',
     }.get(Path(menu_item.image.name).suffix.lower(), 'application/octet-stream')
-    try:
-        image_file = menu_item.image.open('rb')
-    except FileNotFoundError as error:
-        raise Http404("ไม่พบไฟล์รูปภาพเมนูในพื้นที่จัดเก็บ") from error
+
+    if menu_item.image.storage.exists(menu_item.image.name):
+        try:
+            image_file = menu_item.image.open('rb')
+        except FileNotFoundError as error:
+            raise Http404("ไม่พบไฟล์รูปภาพเมนูในพื้นที่จัดเก็บ") from error
+    else:
+        bundled_media_root = (Path(settings.BASE_DIR) / 'media').resolve()
+        bundled_image = (bundled_media_root / menu_item.image.name).resolve()
+        try:
+            bundled_image.relative_to(bundled_media_root)
+        except ValueError as error:
+            raise Http404("ไม่พบไฟล์รูปภาพเมนูในพื้นที่จัดเก็บ") from error
+        if not bundled_image.is_file():
+            raise Http404("ไม่พบไฟล์รูปภาพเมนูในพื้นที่จัดเก็บ")
+        image_file = bundled_image.open('rb')
+
     response = FileResponse(image_file, content_type=content_type)
     response['X-Content-Type-Options'] = 'nosniff'
     return response
