@@ -3,7 +3,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.http import FileResponse, Http404, HttpResponseForbidden, JsonResponse
+from django.http import FileResponse, Http404, HttpResponse, HttpResponseForbidden, JsonResponse
+from django.utils.html import escape
 from django.utils.dateparse import parse_datetime
 from pathlib import Path
 from .models import (
@@ -81,8 +82,8 @@ def merchant_dashboard(request, slug):
                 return redirect('merchant_dashboard', slug=restaurant.slug)
         
         elif 'add_category' in request.POST:
-            cat_name = request.POST.get('category_name')
-            if cat_name:
+            cat_name = request.POST.get('category_name', '').strip()
+            if cat_name and len(cat_name) <= 150:
                 Category.objects.create(restaurant=restaurant, name=cat_name)
                 return redirect('merchant_dashboard', slug=restaurant.slug)
 
@@ -118,14 +119,34 @@ def delete_menu_item(request, slug, pk):
     menu_item.delete()
     return redirect('merchant_dashboard', slug=restaurant.slug)
 
+
+def menu_item_image(request, slug, pk):
+    restaurant = get_object_or_404(Restaurant, slug=slug)
+    menu_item = get_object_or_404(MenuItem, pk=pk, restaurant=restaurant)
+    if not menu_item.image:
+        raise Http404
+
+    content_type = {
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.png': 'image/png',
+        '.webp': 'image/webp',
+    }.get(Path(menu_item.image.name).suffix.lower(), 'application/octet-stream')
+    response = FileResponse(menu_item.image.open('rb'), content_type=content_type)
+    response['X-Content-Type-Options'] = 'nosniff'
+    return response
+
+
 @login_required(login_url='/login/')
 def edit_category(request, slug, pk):
     restaurant = get_object_or_404(Restaurant, slug=slug)
+    if restaurant.user != request.user and not request.user.is_superuser:
+        return HttpResponseForbidden()
     category = get_object_or_404(Category, pk=pk, restaurant=restaurant)
     
     if request.method == 'POST':
-        name = request.POST.get('category_name')
-        if name:
+        name = request.POST.get('category_name', '').strip()
+        if name and len(name) <= 150:
             category.name = name
             category.save()
             return redirect('merchant_dashboard', slug=restaurant.slug)
@@ -134,8 +155,11 @@ def edit_category(request, slug, pk):
     return render(request, 'restaurants/edit_category.html', context)
 
 @login_required(login_url='/login/')
+@require_POST
 def delete_category(request, slug, pk):
     restaurant = get_object_or_404(Restaurant, slug=slug)
+    if restaurant.user != request.user and not request.user.is_superuser:
+        return HttpResponseForbidden()
     category = get_object_or_404(Category, pk=pk, restaurant=restaurant)
     category.delete()
     return redirect('merchant_dashboard', slug=restaurant.slug)
@@ -296,6 +320,49 @@ def online_order_success(request, slug, token):
         'restaurant': restaurant,
         'order': order,
     })
+
+
+def online_order_receipt(request, slug, token):
+    restaurant = get_object_or_404(Restaurant, slug=slug, is_active=True)
+    order = get_object_or_404(
+        Order.objects.prefetch_related('items__menu_item'),
+        restaurant=restaurant,
+        public_token=token,
+        order_type='pickup',
+    )
+    line_height = 34
+    height = 350 + order.items.count() * line_height
+    item_rows = ''.join(
+        f'<text x="40" y="{220 + index * line_height}" font-size="18">'
+        f'{escape(item.menu_item.name)} × {item.quantity}</text>'
+        f'<text x="560" y="{220 + index * line_height}" text-anchor="end" font-size="18">'
+        f'฿{item.price:,.2f}</text>'
+        for index, item in enumerate(order.items.all())
+    )
+    pickup_time = (
+        timezone.localtime(order.pickup_at).strftime('%d/%m/%Y %H:%M')
+        if order.pickup_at else '-'
+    )
+    total_y = 240 + order.items.count() * line_height
+    receipt_svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="600" height="{height}" viewBox="0 0 600 {height}">
+<rect width="100%" height="100%" fill="#f3f4f6"/>
+<rect x="16" y="16" width="568" height="{height - 32}" rx="20" fill="#fff"/>
+<text x="40" y="68" font-family="Prompt, sans-serif" font-size="26" font-weight="700">{escape(restaurant.name)}</text>
+<text x="40" y="104" font-family="Prompt, sans-serif" font-size="19">ใบรับสินค้า · ออร์เดอร์ #{order.id}</text>
+<text x="40" y="140" font-family="Prompt, sans-serif" font-size="17">ผู้สั่ง: {escape(order.customer_name or '-')}</text>
+<text x="40" y="174" font-family="Prompt, sans-serif" font-size="17">เวลารับสินค้า: {pickup_time}</text>
+<line x1="40" y1="192" x2="560" y2="192" stroke="#d1d5db"/>
+{item_rows}
+<line x1="40" y1="{total_y - 24}" x2="560" y2="{total_y - 24}" stroke="#d1d5db"/>
+<text x="40" y="{total_y + 10}" font-family="Prompt, sans-serif" font-size="20" font-weight="700">ยอดรวม</text>
+<text x="560" y="{total_y + 10}" text-anchor="end" font-family="Prompt, sans-serif" font-size="20" font-weight="700">฿{order.total_price:,.2f}</text>
+<text x="40" y="{total_y + 48}" font-family="Prompt, sans-serif" font-size="15" fill="#4b5563">กรุณาแสดงใบรับสินค้านี้เมื่อมารับสินค้า</text>
+</svg>'''
+    response = HttpResponse(receipt_svg, content_type='image/svg+xml; charset=utf-8')
+    response['Content-Disposition'] = f'attachment; filename="receipt-order-{order.id}.svg"'
+    response['X-Content-Type-Options'] = 'nosniff'
+    response['Cache-Control'] = 'private, no-store'
+    return response
 
 
 @login_required(login_url='/login/')

@@ -242,9 +242,15 @@
                             <td class="p-3">{{ order.created_at|date:"d/m/Y H:i" }} น.</td>
                             <td class="p-3 text-right font-bold text-gray-900">฿{{ order.total_price }}</td>
                             <td class="p-3 text-center">
-                                <a href="{% url 'merchant_table_receipt' restaurant.slug order.table_number|default:'none' %}?order_id={{ order.id }}" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-xl text-xs font-medium transition shadow-sm">
+                                {% if order.order_type == 'pickup' %}
+                                <a href="{% url 'view_online_payment_slip' restaurant.slug order.id %}" target="_blank" rel="noopener" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-xl text-xs font-medium transition shadow-sm">
+                                    ดูสลิปโอนเงิน
+                                </a>
+                                {% else %}
+                                <a href="{% url 'merchant_table_receipt' restaurant.slug order.table_number %}?order_id={{ order.id }}" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-xl text-xs font-medium transition shadow-sm">
                                     ดูสลิปบิล
                                 </a>
+                                {% endif %}
                             </td>
                         </tr>
                         {% empty %}

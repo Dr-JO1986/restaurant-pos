@@ -4,9 +4,9 @@ from .views import (
     merchant_dashboard, 
     customer_storefront, place_order, order_success,
     online_storefront, place_online_order, online_order_success,
-    view_online_payment_slip, review_online_payment, checkout_online_order,
+    online_order_receipt, view_online_payment_slip, review_online_payment, checkout_online_order,
     edit_menu_item, delete_menu_item, 
-    edit_category, delete_category,
+    edit_category, delete_category, menu_item_image,
     merchant_orders, update_order_status,
     api_order_status,
     merchant_tables, delete_table,
@@ -35,6 +35,7 @@ urlpatterns = [
     path('store/<slug:slug>/online/', online_storefront, name='online_storefront'),
     path('store/<slug:slug>/online/order/', place_online_order, name='place_online_order'),
     path('store/<slug:slug>/online/success/<uuid:token>/', online_order_success, name='online_order_success'),
+    path('store/<slug:slug>/online/receipt/<uuid:token>/', online_order_receipt, name='online_order_receipt'),
     path('store/<slug:slug>/manage/online-order/<int:order_id>/payment-slip/', view_online_payment_slip, name='view_online_payment_slip'),
     path('store/<slug:slug>/manage/online-order/<int:order_id>/review-payment/', review_online_payment, name='review_online_payment'),
 
@@ -49,6 +50,7 @@ urlpatterns = [
     path('store/<slug:slug>/manage/orders/<int:order_id>/update/', update_order_status, name='update_order_status'),
     path('store/<slug:slug>/manage/menu/<int:pk>/edit/', edit_menu_item, name='edit_menu_item'),
     path('store/<slug:slug>/manage/menu/<int:pk>/delete/', delete_menu_item, name='delete_menu_item'),
+    path('store/<slug:slug>/menu/<int:pk>/image/', menu_item_image, name='menu_item_image'),
     path('store/<slug:slug>/manage/category/<int:pk>/edit/', edit_category, name='edit_category'),
     path('store/<slug:slug>/manage/category/<int:pk>/delete/', delete_category, name='delete_category'),
 

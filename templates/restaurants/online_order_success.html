@@ -43,6 +43,10 @@
                 <span>ยอดรวม</span>
                 <span class="text-indigo-600">฿{{ order.total_price }}</span>
             </div>
+
+            <a href="{% url 'online_order_receipt' restaurant.slug order.public_token %}" class="block w-full bg-emerald-600 hover:bg-emerald-700 text-white text-center font-medium py-3 rounded-xl mt-4 transition">
+                📥 ดาวน์โหลดใบรับสินค้าเป็นรูปภาพ
+            </a>
         </div>
 
         <a href="{% url 'online_storefront' restaurant.slug %}" class="block w-full bg-indigo-600 hover:bg-indigo-700 text-white text-center font-medium py-3 rounded-xl mt-6 transition">

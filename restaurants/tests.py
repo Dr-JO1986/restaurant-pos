@@ -78,7 +78,12 @@ class OnlinePickupOrderTests(TestCase):
         self.assertIsNotNone(order.pickup_at)
         self.assertEqual(order.total_price, Decimal('100.00'))
         self.assertEqual(OrderItem.objects.get(order=order).quantity, 2)
-        self.assertContains(self.client.get(response.url), 'กำลังตรวจสอบสลิป')
+        success_response = self.client.get(response.url)
+        self.assertContains(success_response, 'กำลังตรวจสอบสลิป')
+        self.assertContains(
+            success_response,
+            reverse('online_order_receipt', args=[self.restaurant.slug, order.public_token]),
+        )
 
     def test_order_requires_payment_slip_and_future_pickup_time(self):
         data = self.valid_order_data()
@@ -137,6 +142,78 @@ class OnlinePickupOrderTests(TestCase):
         self.assertEqual(self.restaurant.bank_account_name, 'ชื่อบัญชีใหม่')
         self.assertEqual(self.restaurant.bank_account_number, '999000')
 
+    def test_owner_can_edit_and_delete_categories_from_dashboard(self):
+        self.client.force_login(self.user)
+        dashboard_url = reverse('merchant_dashboard', args=[self.restaurant.slug])
+        response = self.client.get(dashboard_url)
+        self.assertContains(
+            response,
+            reverse('edit_category', args=[self.restaurant.slug, self.category.id]),
+        )
+        self.assertContains(
+            response,
+            reverse('delete_category', args=[self.restaurant.slug, self.category.id]),
+        )
+
+        response = self.client.post(dashboard_url, {
+            'add_category': '1',
+            'category_name': ' เครื่องดื่ม ',
+        })
+        self.assertRedirects(response, dashboard_url)
+        self.assertTrue(Category.objects.filter(restaurant=self.restaurant, name='เครื่องดื่ม').exists())
+
+        response = self.client.post(
+            reverse('edit_category', args=[self.restaurant.slug, self.category.id]),
+            {'category_name': 'อาหารจานหลัก'},
+        )
+        self.assertRedirects(response, dashboard_url)
+        self.category.refresh_from_db()
+        self.assertEqual(self.category.name, 'อาหารจานหลัก')
+
+        category_to_delete = Category.objects.create(restaurant=self.restaurant, name='ของหวาน')
+        MenuItem.objects.create(
+            restaurant=self.restaurant,
+            category=category_to_delete,
+            name='เค้ก',
+            price=Decimal('45.00'),
+        )
+        response = self.client.post(
+            reverse('delete_category', args=[self.restaurant.slug, category_to_delete.id]),
+        )
+        self.assertRedirects(response, dashboard_url)
+        self.assertFalse(Category.objects.filter(pk=category_to_delete.id).exists())
+        self.assertFalse(MenuItem.objects.filter(name='เค้ก').exists())
+
+    def test_dashboard_serves_menu_images_through_public_image_route(self):
+        self.client.force_login(self.user)
+        self.menu_item.image.save('menu.png', self.create_slip_upload(), save=True)
+
+        dashboard_response = self.client.get(reverse('merchant_dashboard', args=[self.restaurant.slug]))
+        image_url = reverse('menu_item_image', args=[self.restaurant.slug, self.menu_item.id])
+        self.assertContains(dashboard_response, image_url)
+
+        image_response = self.client.get(image_url)
+        self.assertEqual(image_response.status_code, 200)
+        self.assertEqual(image_response['Content-Type'], 'image/png')
+        image_response.close()
+
+    def test_customer_can_download_online_order_receipt_as_image(self):
+        self.client.post(
+            reverse('place_online_order', args=[self.restaurant.slug]),
+            self.valid_order_data(),
+        )
+        order = Order.objects.get(restaurant=self.restaurant)
+
+        response = self.client.get(
+            reverse('online_order_receipt', args=[self.restaurant.slug, order.public_token]),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'image/svg+xml; charset=utf-8')
+        self.assertIn(f'receipt-order-{order.id}.svg', response['Content-Disposition'])
+        self.assertContains(response, 'ใบรับสินค้า')
+        self.assertContains(response, 'ข้าวผัด × 2')
+
     def test_pending_payment_is_reviewed_before_order_reaches_kitchen(self):
         self.client.force_login(self.user)
         self.client.post(
@@ -168,6 +245,10 @@ class OnlinePickupOrderTests(TestCase):
             reverse('checkout_online_order', args=[self.restaurant.slug, order.id]),
         )
         self.assertContains(response, 'ยืนยันว่าลูกค้ารับสินค้าแล้ว')
+        self.assertContains(
+            response,
+            reverse('view_online_payment_slip', args=[self.restaurant.slug, order.id]),
+        )
 
     def test_rejecting_payment_does_not_mark_order_paid_or_send_to_kitchen(self):
         self.client.force_login(self.user)
