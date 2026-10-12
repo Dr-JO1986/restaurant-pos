@@ -127,6 +127,39 @@ def menu_item_image(request, slug, pk):
     if not menu_item.image:
         raise Http404
 
+    bundled_media_root = (Path(settings.BASE_DIR) / 'media').resolve()
+    bundled_image = (bundled_media_root / menu_item.image.name).resolve()
+    try:
+        bundled_image.relative_to(bundled_media_root)
+    except ValueError as error:
+        raise Http404("ไม่พบไฟล์รูปภาพเมนูในพื้นที่จัดเก็บ") from error
+
+    if settings.CLOUDINARY_STORAGE_ENABLED:
+        if menu_item.image.storage.exists(menu_item.image.name):
+            return redirect(menu_item.image.url)
+        local_media_root = Path(settings.MEDIA_ROOT).resolve()
+        local_image = (local_media_root / menu_item.image.name).resolve()
+        try:
+            local_image.relative_to(local_media_root)
+        except ValueError as error:
+            raise Http404("ไม่พบไฟล์รูปภาพเมนูในพื้นที่จัดเก็บ") from error
+
+        fallback_image = next(
+            (path for path in (local_image, bundled_image) if path.is_file()),
+            None,
+        )
+        if fallback_image is None:
+            raise Http404("ไม่พบไฟล์รูปภาพเมนูใน Cloudinary หรือพื้นที่จัดเก็บเดิม")
+
+        image_file = fallback_image.open('rb')
+        content_type = {
+            '.jpg': 'image/jpeg',
+            '.jpeg': 'image/jpeg',
+            '.png': 'image/png',
+            '.webp': 'image/webp',
+        }.get(Path(menu_item.image.name).suffix.lower(), 'application/octet-stream')
+        return FileResponse(image_file, content_type=content_type)
+
     content_type = {
         '.jpg': 'image/jpeg',
         '.jpeg': 'image/jpeg',
@@ -140,15 +173,14 @@ def menu_item_image(request, slug, pk):
         except FileNotFoundError as error:
             raise Http404("ไม่พบไฟล์รูปภาพเมนูในพื้นที่จัดเก็บ") from error
     else:
-        bundled_media_root = (Path(settings.BASE_DIR) / 'media').resolve()
-        bundled_image = (bundled_media_root / menu_item.image.name).resolve()
-        try:
-            bundled_image.relative_to(bundled_media_root)
-        except ValueError as error:
-            raise Http404("ไม่พบไฟล์รูปภาพเมนูในพื้นที่จัดเก็บ") from error
-        if not bundled_image.is_file():
+        fallback_image = next(
+            (path for path in (bundled_image, (Path(settings.MEDIA_ROOT) / menu_item.image.name).resolve())
+             if path.is_file()),
+            None,
+        )
+        if fallback_image is None:
             raise Http404("ไม่พบไฟล์รูปภาพเมนูในพื้นที่จัดเก็บ")
-        image_file = bundled_image.open('rb')
+        image_file = fallback_image.open('rb')
 
     response = FileResponse(image_file, content_type=content_type)
     response['X-Content-Type-Options'] = 'nosniff'

@@ -1,22 +1,20 @@
-# Render file storage
+# Cloudinary file storage on Render
 
-Uploaded menu photos and online payment slips must be stored on persistent
-storage. Render's web-service filesystem is otherwise replaced during deploys.
+Menu photos and online payment slips use Cloudinary when Cloudinary credentials
+are present in the environment. Static assets continue to use WhiteNoise.
 
-For the current web service:
+Configure either one of these options in the Render web service environment:
 
-1. In Render, open the web service and add a Persistent Disk. Use `/var/data`
-   as its mount path (do not mount it at `/var/data/media`, because that is the
-   application's media subdirectory). Persistent disks require a paid service plan.
-2. Redeploy the service after the disk is attached.
-3. In the service's Environment settings, set `MEDIA_ROOT` to
-   `/var/data/media`, then save and redeploy if Render requests it.
+- `CLOUDINARY_URL` with the Cloudinary connection URL; or
+- all three variables: `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, and
+  `CLOUDINARY_API_SECRET`.
 
-When Render's `RENDER=true` environment variable is present, the application
-defaults `MEDIA_ROOT` to `/var/data/media`; the explicit environment setting
-above keeps the storage location clear and configurable.
+The app selects `cloudinary_storage.storage.MediaCloudinaryStorage` for the
+Django default file storage when these credentials are configured. With no
+Cloudinary credentials, local development continues to use `MEDIA_ROOT` (which
+can be overridden with the `MEDIA_ROOT` environment variable).
 
-Files uploaded before the persistent disk was attached are not copied
-automatically. Restore any missing uploads from a backup or upload them again
-after the disk is mounted. Files that are already in the repository's bundled
-`media` directory can still be served as fallback menu images.
+Previously uploaded files are not copied to Cloudinary automatically. Upload
+existing menu photos and payment slips to Cloudinary, or re-upload them from
+the merchant dashboard. Bundled menu images under `media/menu_images` remain
+available as a fallback.

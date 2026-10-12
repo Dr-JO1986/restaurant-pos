@@ -2,6 +2,7 @@ from datetime import timedelta
 from decimal import Decimal
 from io import BytesIO
 import tempfile
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -353,6 +354,32 @@ class OnlinePickupOrderTests(TestCase):
         self.assertEqual(response.status_code, 404)
 
     def test_bundled_menu_image_loads_when_media_root_is_separate(self):
+        self.menu_item.image = 'menu_images/OIP.jpg'
+        self.menu_item.save(update_fields=['image'])
+
+        response = self.client.get(
+            reverse('menu_item_image', args=[self.restaurant.slug, self.menu_item.id]),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'image/jpeg')
+        response.close()
+
+    @override_settings(CLOUDINARY_STORAGE_ENABLED=True)
+    def test_menu_image_route_redirects_to_configured_cloud_storage(self):
+        self.menu_item.image.save('uploaded-menu.png', self.create_slip_upload(), save=True)
+        expected_cloud_url = self.menu_item.image.url
+
+        response = self.client.get(
+            reverse('menu_item_image', args=[self.restaurant.slug, self.menu_item.id]),
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response['Location'], expected_cloud_url)
+
+    @override_settings(CLOUDINARY_STORAGE_ENABLED=True)
+    @patch('django.core.files.storage.FileSystemStorage.exists', return_value=False)
+    def test_cloudinary_menu_image_falls_back_to_bundled_image(self, _exists):
         self.menu_item.image = 'menu_images/OIP.jpg'
         self.menu_item.save(update_fields=['image'])
 

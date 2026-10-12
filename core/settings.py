@@ -42,6 +42,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'cloudinary_storage',
+    'cloudinary',
     'rest_framework',
     'corsheaders',
     'restaurants'
@@ -137,10 +139,41 @@ MAILERS = {
     },
 }
 MEDIA_URL = '/media/'
-DEFAULT_MEDIA_ROOT = (
-    '/var/data/media'
-    if os.environ.get('RENDER') == 'true'
-    else os.path.join(BASE_DIR, 'media')
+
+cloudinary_environment_keys = (
+    'CLOUDINARY_CLOUD_NAME',
+    'CLOUDINARY_API_KEY',
+    'CLOUDINARY_API_SECRET',
 )
-MEDIA_ROOT = os.environ.get('MEDIA_ROOT', DEFAULT_MEDIA_ROOT)
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+cloudinary_environment_values = [os.environ.get(key) for key in cloudinary_environment_keys]
+if (
+    not os.environ.get('CLOUDINARY_URL')
+    and any(cloudinary_environment_values)
+    and not all(cloudinary_environment_values)
+):
+    raise ImproperlyConfigured(
+        'Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET together.'
+    )
+
+CLOUDINARY_STORAGE_ENABLED = bool(
+    os.environ.get('CLOUDINARY_URL') or all(cloudinary_environment_values)
+)
+if all(cloudinary_environment_values):
+    CLOUDINARY_STORAGE = dict(zip(
+        ('CLOUD_NAME', 'API_KEY', 'API_SECRET'),
+        cloudinary_environment_values,
+    ))
+
+MEDIA_ROOT = os.environ.get('MEDIA_ROOT', os.path.join(BASE_DIR, 'media'))
+STORAGES = {
+    'default': {
+        'BACKEND': (
+            'cloudinary_storage.storage.MediaCloudinaryStorage'
+            if CLOUDINARY_STORAGE_ENABLED
+            else 'django.core.files.storage.FileSystemStorage'
+        ),
+    },
+    'staticfiles': {
+        'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+    },
+}
