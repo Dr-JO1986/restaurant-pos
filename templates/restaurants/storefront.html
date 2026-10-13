@@ -46,17 +46,17 @@
 
         <!-- 1. ส่วนแสดงรายการที่ลูกค้าสั่งไปแล้ว -->
         {% if active_orders %}
-        <div class="bg-blue-50 border border-blue-200 p-4 rounded-2xl mb-6">
-            <div class="flex justify-between items-center mb-2">
-                <h3 class="font-bold text-blue-800 text-sm flex items-center gap-2">
+        <section class="bg-blue-50 border border-blue-200 p-4 sm:p-5 rounded-2xl mb-6">
+            <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
+                <h3 class="font-bold text-blue-800 text-sm flex items-center gap-2 min-w-0">
                     <span>📋</span> รายการที่สั่งไปแล้วของโต๊ะ {{ table_number }}
                 </h3>
-                <div class="flex items-center gap-1.5">
+                <div class="grid grid-cols-2 gap-2 w-full sm:w-auto sm:flex sm:items-center">
                     <!-- ปุ่มกดอัปเดตสถานะด้วยตัวเอง -->
-                    <button onclick="location.reload();" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-2.5 py-1.5 rounded-xl text-xs shadow transition flex items-center gap-1">
+                    <button onclick="location.reload();" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3 py-2.5 sm:py-2 rounded-xl text-xs shadow transition text-center">
                         🔄 อัปเดตสถานะ
                     </button>
-                    <a href="{% url 'table_bill_summary' restaurant.slug table_number %}" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-3 py-1.5 rounded-xl text-xs shadow transition">
+                    <a href="{% url 'table_bill_summary' restaurant.slug table_number %}" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-3 py-2.5 sm:py-2 rounded-xl text-xs shadow transition text-center">
                         📜 ดูบิลรวม
                     </a>
                 </div>
@@ -64,7 +64,7 @@
             
             <div class="space-y-3" id="activeOrdersContainer">
                 {% for ao in active_orders %}
-                <div class="bg-white p-3 rounded-xl border border-blue-100 text-xs shadow-sm order-card" data-order-id="{{ ao.id }}">
+                <div class="bg-white p-3 sm:p-4 rounded-xl border border-blue-100 text-xs shadow-sm order-card" data-order-id="{{ ao.id }}">
                     <div class="flex justify-between font-bold text-gray-700 mb-2 border-b pb-1">
                         <span>ออร์เดอร์ #{{ ao.id }}</span>
                         <span class="text-[11px] text-gray-400">{{ ao.created_at|date:"H:i น." }}</span>
@@ -72,49 +72,46 @@
                     
                     <ul class="space-y-2">
                         {% for item in ao.items.all %}
-                        <li class="flex flex-col bg-gray-50 p-2.5 rounded-lg border gap-2">
-                            <div class="flex justify-between items-center">
-                                <div>
-                                    <span class="font-bold text-gray-800">{{ item.menu_item.name }}</span> 
-                                    <span class="text-indigo-600 font-semibold">จำนวน: {{ item.quantity }}</span> (฿{{ item.price }})
-                                    <div class="mt-1">
-                                        <!-- ป้ายแสดงสถานะ (แสดงผลถูกต้อง ไม่ซ้ำซ้อน) -->
-                                        <span id="status-badge-{{ item.id }}" class="px-2 py-0.5 rounded-full text-[10px] font-semibold
-                                            {% if item.status == 'pending' %} bg-yellow-100 text-yellow-800 
-                                            {% elif item.status == 'cooking' %} bg-blue-100 text-blue-800 
-                                            {% elif item.status == 'completed' %} bg-green-100 text-green-800 
-                                            {% else %} bg-red-100 text-red-800 line-through {% endif %}">
-                                            {{ item.get_status_display }}
-                                        </span>
-                                    </div>
+                        <li class="flex flex-col bg-gray-50 p-3 rounded-lg border gap-3">
+                            <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 min-w-0">
+                                <div class="min-w-0">
+                                    <p class="font-bold text-gray-800 text-sm break-words">{{ item.menu_item.name }}</p>
+                                    <p class="text-indigo-600 font-semibold mt-1">จำนวน: {{ item.quantity }} <span class="text-gray-400 font-normal">·</span> ฿{{ item.price }}</p>
+                                </div>
+                                <div class="shrink-0">
+                                    <span id="status-badge-{{ item.id }}" class="inline-flex px-2.5 py-1 rounded-full text-[10px] font-semibold
+                                        {% if item.status == 'pending' %} bg-yellow-100 text-yellow-800
+                                        {% elif item.status == 'cooking' %} bg-blue-100 text-blue-800
+                                        {% elif item.status == 'completed' %} bg-green-100 text-green-800
+                                        {% else %} bg-red-100 text-red-800 line-through {% endif %}">
+                                        {{ item.get_status_display }}
+                                    </span>
                                 </div>
                             </div>
 
-                            <!-- หากสถานะยังเป็น pending แสดงปุ่มแก้ไขจำนวน และยกเลิก -->
                             {% if item.status == 'pending' %}
-                            <div class="flex items-center justify-between pt-2 border-t border-gray-200">
+                            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pt-3 border-t border-gray-200">
                                 <span class="text-[11px] text-gray-500">ต้องการเปลี่ยนจำนวนหรือยกเลิก?</span>
-                                <div class="flex items-center gap-1.5">
-                                    <button type="button" onclick="toggleEditBox('edit-box-{{ item.id }}')" class="bg-amber-50 hover:bg-amber-100 text-amber-700 font-medium px-2.5 py-1 rounded text-[11px] transition shadow-sm">
+                                <div class="grid grid-cols-2 sm:flex gap-2 w-full sm:w-auto">
+                                    <button type="button" onclick="toggleEditBox('edit-box-{{ item.id }}')" class="bg-amber-50 hover:bg-amber-100 text-amber-700 font-medium px-3 py-2 rounded-lg text-[11px] transition shadow-sm">
                                         ✏️ แก้ไขจำนวน
                                     </button>
-                                    <a href="{% url 'cancel_order_item_customer' restaurant.slug item.id %}" onclick="return confirm('ยืนยันการยกเลิกเมนู {{ item.menu_item.name }}?');" class="bg-red-50 hover:bg-red-100 text-red-600 font-medium px-2.5 py-1 rounded text-[11px] transition">
+                                    <a href="{% url 'cancel_order_item_customer' restaurant.slug item.id %}" onclick="return confirm('ยืนยันการยกเลิกเมนู {{ item.menu_item.name }}?');" class="bg-red-50 hover:bg-red-100 text-red-600 font-medium px-3 py-2 rounded-lg text-[11px] transition text-center">
                                         ❌ ยกเลิก
                                     </a>
                                 </div>
                             </div>
 
-                            <!-- กล่องบล็อกแก้ไขจำนวน -->
-                            <div id="edit-box-{{ item.id }}" class="hidden bg-indigo-50/70 p-2.5 rounded-lg border border-indigo-100 mt-1">
-                                <form action="{% url 'update_order_item_quantity_customer' restaurant.slug item.id %}" method="POST" class="flex items-center justify-between gap-2">
+                            <div id="edit-box-{{ item.id }}" class="hidden bg-indigo-50/70 p-3 rounded-lg border border-indigo-100">
+                                <form action="{% url 'update_order_item_quantity_customer' restaurant.slug item.id %}" method="POST" class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                                     {% csrf_token %}
-                                    <span class="text-[11px] font-bold text-indigo-900">ระบุจำนวนใหม่:</span>
-                                    <div class="flex items-center gap-1">
-                                        <input type="number" name="quantity" value="{{ item.quantity }}" min="1" max="99" class="w-16 text-center border rounded text-xs py-1 bg-white focus:outline-none font-bold text-gray-800 shadow-sm">
-                                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-3 py-1 rounded text-[11px] transition shadow-sm">
+                                    <label for="quantity-{{ item.id }}" class="text-[11px] font-bold text-indigo-900">ระบุจำนวนใหม่:</label>
+                                    <div class="grid grid-cols-[4rem_1fr_3rem] sm:flex items-center gap-2">
+                                        <input id="quantity-{{ item.id }}" type="number" name="quantity" value="{{ item.quantity }}" min="1" max="99" class="w-full sm:w-16 text-center border rounded-lg text-xs py-2 bg-white focus:outline-none font-bold text-gray-800 shadow-sm">
+                                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-3 py-2 rounded-lg text-[11px] transition shadow-sm whitespace-nowrap">
                                             ✓ ยืนยันการแก้
                                         </button>
-                                        <button type="button" onclick="toggleEditBox('edit-box-{{ item.id }}')" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-2 py-1 rounded text-[11px] transition">
+                                        <button type="button" onclick="toggleEditBox('edit-box-{{ item.id }}')" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-2 py-2 rounded-lg text-[11px] transition">
                                             ปิด
                                         </button>
                                     </div>
@@ -132,7 +129,7 @@
                 </div>
                 {% endfor %}
             </div>
-        </div>
+        </section>
         {% endif %}
 
         <!-- Script สำหรับเปิด/ปิดกล่องบล็อกแก้ไขจำนวน -->

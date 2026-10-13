@@ -397,6 +397,36 @@ class OnlinePickupOrderTests(TestCase):
         self.assertEqual(response['Content-Type'], 'image/jpeg')
         response.close()
 
+    def test_table_storefront_renders_active_order_controls_for_mobile(self):
+        order = Order.objects.create(
+            restaurant=self.restaurant,
+            table_number='A1',
+            total_price=Decimal('100.00'),
+        )
+        order_item = OrderItem.objects.create(
+            order=order,
+            menu_item=self.menu_item,
+            quantity=2,
+            price=self.menu_item.price,
+            status='pending',
+        )
+
+        response = self.client.get(
+            reverse('customer_storefront_table', args=[self.restaurant.slug, 'A1']),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'รายการที่สั่งไปแล้วของโต๊ะ A1')
+        self.assertContains(response, 'grid grid-cols-2 gap-2 w-full sm:w-auto')
+        self.assertContains(response, 'ข้าวผัด')
+        self.assertContains(response, 'จำนวน: 2')
+        self.assertContains(response, 'รอดำเนินการ')
+        self.assertContains(response, 'แก้ไขจำนวน')
+        self.assertContains(
+            response,
+            reverse('cancel_order_item_customer', args=[self.restaurant.slug, order_item.id]),
+        )
+
     @override_settings(CLOUDINARY_STORAGE_ENABLED=True)
     def test_menu_image_route_redirects_to_configured_cloud_storage(self):
         self.menu_item.image.save('uploaded-menu.png', self.create_slip_upload(), save=True)
