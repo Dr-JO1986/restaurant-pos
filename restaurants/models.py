@@ -56,7 +56,7 @@ class Restaurant(models.Model):
     bank_name = models.CharField(max_length=100, blank=True, verbose_name="ธนาคารรับโอน")
     bank_account_name = models.CharField(max_length=100, blank=True, verbose_name="ชื่อบัญชี")
     bank_account_number = models.CharField(max_length=50, blank=True, verbose_name="เลขบัญชี")
-    is_active = models.BooleanField(default=True, verbose_name="สถานะเปิดใช้งาน")
+    is_active = models.BooleanField(default=False, verbose_name="สถานะเปิดใช้งาน")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="วันที่สมัคร")
 
     def __str__(self):

@@ -1,7 +1,8 @@
 from django import forms
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import UserCreationForm
-from .models import MenuItem, Category
+from django.utils.text import slugify
+from .models import MenuItem, Category, RESTAURANT_TYPES, Restaurant
 
 class CategoryForm(forms.ModelForm):
     class Meta:
@@ -51,4 +52,72 @@ class StaffAccountCreationForm(UserCreationForm):
         user.is_active = True
         if commit:
             user.save()
+        return user
+
+
+class MerchantRegistrationForm(UserCreationForm):
+    restaurant_name = forms.CharField(
+        max_length=255,
+        label='ชื่อร้าน',
+        widget=forms.TextInput(attrs={
+            'class': 'w-full rounded-lg border px-4 py-2',
+            'autocomplete': 'organization',
+        }),
+    )
+    owner_name = forms.CharField(
+        max_length=255,
+        label='ชื่อเจ้าของร้าน',
+        widget=forms.TextInput(attrs={
+            'class': 'w-full rounded-lg border px-4 py-2',
+            'autocomplete': 'name',
+        }),
+    )
+    phone = forms.CharField(
+        max_length=20,
+        label='เบอร์โทรศัพท์',
+        widget=forms.TelInput(attrs={
+            'class': 'w-full rounded-lg border px-4 py-2',
+            'autocomplete': 'tel',
+        }),
+    )
+    restaurant_type = forms.ChoiceField(
+        choices=RESTAURANT_TYPES,
+        label='ประเภทร้าน',
+        widget=forms.Select(attrs={'class': 'w-full rounded-lg border px-4 py-2'}),
+    )
+
+    class Meta:
+        model = get_user_model()
+        fields = ('username', 'restaurant_name', 'owner_name', 'phone', 'restaurant_type')
+        widgets = {
+            'username': forms.TextInput(attrs={
+                'class': 'w-full rounded-lg border px-4 py-2',
+                'autocomplete': 'username',
+            }),
+        }
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.is_staff = False
+        user.is_superuser = False
+        user.is_active = True
+        if commit:
+            user.save()
+
+            base_slug = slugify(self.cleaned_data['restaurant_name']) or 'restaurant'
+            slug = base_slug
+            suffix = 2
+            while Restaurant.objects.filter(slug=slug).exists():
+                slug = f'{base_slug}-{suffix}'
+                suffix += 1
+
+            Restaurant.objects.create(
+                user=user,
+                name=self.cleaned_data['restaurant_name'],
+                slug=slug,
+                owner_name=self.cleaned_data['owner_name'],
+                phone=self.cleaned_data['phone'],
+                restaurant_type=self.cleaned_data['restaurant_type'],
+                is_active=False,
+            )
         return user

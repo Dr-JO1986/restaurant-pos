@@ -29,6 +29,7 @@ class OnlinePickupOrderTests(TestCase):
             slug='test-restaurant',
             owner_name='Owner',
             phone='0812345678',
+            is_active=True,
             bank_name='ธนาคารทดสอบ',
             bank_account_name='ร้านทดสอบ',
             bank_account_number='1234567890',
@@ -167,6 +168,84 @@ class OnlinePickupOrderTests(TestCase):
         self.assertEqual(self.restaurant.bank_name, 'ธนาคารใหม่')
         self.assertEqual(self.restaurant.bank_account_name, 'ชื่อบัญชีใหม่')
         self.assertEqual(self.restaurant.bank_account_number, '999000')
+
+    def test_merchant_registration_creates_pending_account_and_blocks_pos(self):
+        response = self.client.post(
+            reverse('merchant_register'),
+            {
+                'username': 'pending-merchant',
+                'password1': 'StrongPass!7xyZ',
+                'password2': 'StrongPass!7xyZ',
+                'restaurant_name': 'ร้านทดลองภาษาไทย',
+                'owner_name': 'เจ้าของร้าน',
+                'phone': '0812345678',
+                'restaurant_type': 'cafe',
+            },
+        )
+
+        self.assertRedirects(response, reverse('restaurant_pending'))
+        user = get_user_model().objects.get(username='pending-merchant')
+        restaurant = Restaurant.objects.get(user=user)
+        self.assertFalse(restaurant.is_active)
+        self.assertFalse(user.is_staff)
+        self.assertFalse(user.is_superuser)
+        self.assertContains(self.client.get(reverse('restaurant_pending')), 'อยู่ระหว่างรอตรวจสอบ')
+        self.assertRedirects(
+            self.client.get(reverse('staff_order_screen', args=[restaurant.slug])),
+            reverse('restaurant_pending'),
+        )
+        self.client.logout()
+        self.assertEqual(
+            self.client.get(reverse('online_storefront', args=[restaurant.slug])).status_code,
+            404,
+        )
+
+    def test_login_for_unapproved_merchant_opens_pending_notice(self):
+        merchant = get_user_model().objects.create_user(
+            username='waiting-owner',
+            password='MerchantPass!9xyZ',
+        )
+        Restaurant.objects.create(
+            user=merchant,
+            name='ร้านรออนุมัติ',
+            slug='waiting-restaurant',
+            owner_name='เจ้าของร้าน',
+            phone='0812345678',
+        )
+
+        response = self.client.post(
+            reverse('merchant_login'),
+            {'username': 'waiting-owner', 'password': 'MerchantPass!9xyZ'},
+        )
+
+        self.assertRedirects(response, reverse('restaurant_pending'))
+        self.assertContains(self.client.get(reverse('restaurant_pending')), 'ยังไม่สามารถเข้าใช้งานระบบ POS ได้')
+
+    def test_admin_can_activate_and_deactivate_restaurants(self):
+        approval_url = reverse('restaurant_approval_list')
+        toggle_url = reverse('toggle_restaurant_active', args=[self.restaurant.id])
+
+        self.client.force_login(self.user)
+        self.assertEqual(self.client.get(approval_url).status_code, 302)
+        self.assertEqual(self.client.post(toggle_url).status_code, 302)
+        self.restaurant.refresh_from_db()
+        self.assertTrue(self.restaurant.is_active)
+
+        admin_user = get_user_model().objects.create_superuser(
+            username='platform-admin',
+            email='admin@example.com',
+            password='StrongAdmin!8xyZ',
+        )
+        self.client.force_login(admin_user)
+        self.assertContains(self.client.get(approval_url), 'Test Restaurant')
+        response = self.client.post(toggle_url)
+        self.assertRedirects(response, approval_url)
+        self.restaurant.refresh_from_db()
+        self.assertFalse(self.restaurant.is_active)
+
+        self.client.post(toggle_url)
+        self.restaurant.refresh_from_db()
+        self.assertTrue(self.restaurant.is_active)
 
     def test_owner_can_edit_and_delete_categories_from_dashboard(self):
         self.client.force_login(self.user)

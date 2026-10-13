@@ -15,15 +15,23 @@ def merchant_login(request):
                         'error': 'บัญชีพนักงานนี้ถูกปิดใช้งาน กรุณาติดต่อเจ้าของร้าน',
                     })
                 login(request, user)
+                if not staff_membership.restaurant.is_active:
+                    return redirect('restaurant_pending')
                 return redirect('staff_order_screen', slug=staff_membership.restaurant.slug)
 
             login(request, user)
+            if user.is_superuser:
+                return redirect('restaurant_approval_list')
             # ค้นหาร้านค้าที่ผูกกับ User นี้
             try:
                 restaurant = Restaurant.objects.get(user=user)
+                if not restaurant.is_active:
+                    return redirect('restaurant_pending')
                 return redirect('merchant_dashboard', slug=restaurant.slug)
             except Restaurant.DoesNotExist:
-                return redirect('/admin/') # ถ้ายังไม่มีร้าน ให้ไปหน้าแอดมินหรือหน้าตั้งค่า
+                if user.is_superuser:
+                    return redirect('restaurant_approval_list')
+                return redirect('merchant_register')
         else:
             return render(request, 'restaurants/login.html', {'error': 'Username หรือ Password ไม่ถูกต้อง'})
     return render(request, 'restaurants/login.html')

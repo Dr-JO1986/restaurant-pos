@@ -2,6 +2,8 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth import login
+from django.contrib.auth.decorators import user_passes_test
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
@@ -13,7 +15,9 @@ from .models import (
     Restaurant, RestaurantStaff, MenuItem, Category, Order, OrderItem, Table, TransactionRecord,
     ContactInquiry, validate_payment_slip,
 )
-from .forms import MenuItemForm, CategoryForm, StaffAccountCreationForm
+from .forms import (
+    MenuItemForm, CategoryForm, StaffAccountCreationForm, MerchantRegistrationForm,
+)
 from django.utils import timezone
 from django.core.paginator import Paginator
 from django.db.models import Q
@@ -61,6 +65,65 @@ def landing_page(request):
         'submitted': submitted,
     }
     return render(request, 'restaurants/landing_page.html', context)
+
+
+def merchant_register(request):
+    if request.user.is_authenticated:
+        restaurant = Restaurant.objects.filter(user=request.user).first()
+        if restaurant:
+            return redirect(
+                'merchant_dashboard' if restaurant.is_active else 'restaurant_pending',
+                **({'slug': restaurant.slug} if restaurant.is_active else {}),
+            )
+
+    form = MerchantRegistrationForm(request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        with transaction.atomic():
+            user = form.save()
+        login(request, user)
+        return redirect('restaurant_pending')
+
+    return render(request, 'restaurants/merchant_register.html', {'form': form})
+
+
+@login_required(login_url='/login/')
+def restaurant_pending(request):
+    restaurant = Restaurant.objects.filter(user=request.user).first()
+    if restaurant:
+        if restaurant.is_active:
+            return redirect('merchant_dashboard', slug=restaurant.slug)
+    else:
+        staff_membership = RestaurantStaff.objects.select_related('restaurant').filter(
+            user=request.user,
+        ).first()
+        if not staff_membership:
+            return redirect('merchant_login')
+        restaurant = staff_membership.restaurant
+        if restaurant.is_active and staff_membership.is_active:
+            return redirect('staff_order_screen', slug=restaurant.slug)
+
+    return render(request, 'restaurants/restaurant_pending.html', {'restaurant': restaurant})
+
+
+@user_passes_test(lambda user: user.is_superuser, login_url='/admin/login/')
+def restaurant_approval_list(request):
+    restaurants = Restaurant.objects.select_related('user').order_by('is_active', 'name')
+    return render(
+        request,
+        'restaurants/restaurant_approval_list.html',
+        {'restaurants': restaurants},
+    )
+
+
+@user_passes_test(lambda user: user.is_superuser, login_url='/admin/login/')
+@require_POST
+def toggle_restaurant_active(request, restaurant_id):
+    restaurant = get_object_or_404(Restaurant, pk=restaurant_id)
+    restaurant.is_active = not restaurant.is_active
+    restaurant.save(update_fields=['is_active'])
+    status_text = 'อนุมัติและเปิดใช้งาน' if restaurant.is_active else 'ระงับการใช้งาน'
+    messages.success(request, f'{status_text}ร้าน "{restaurant.name}" แล้ว')
+    return redirect('restaurant_approval_list')
     
 @login_required(login_url='/login/')
 def merchant_dashboard(request, slug):

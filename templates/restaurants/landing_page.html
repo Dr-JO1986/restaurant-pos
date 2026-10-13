@@ -29,7 +29,7 @@
             <!-- Right Actions (Desktop & Mobile trigger) -->
             <div class="flex items-center gap-2 sm:gap-4">
                 <a href="/login/" class="hidden sm:inline-block text-xs sm:text-sm font-semibold text-slate-600 hover:text-indigo-600 transition px-2 py-1">เข้าสู่ระบบ</a>
-                <a href="#contact" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm font-bold px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl transition shadow-md sm:shadow-lg shadow-indigo-100 whitespace-nowrap">
+                <a href="{% url 'merchant_register' %}" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm font-bold px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl transition shadow-md sm:shadow-lg shadow-indigo-100 whitespace-nowrap">
                     สมัครใช้งาน 🚀
                 </a>
 
@@ -49,6 +49,7 @@
             <a href="#contact" onclick="toggleMobileMenu()" class="block text-sm font-medium text-slate-700 hover:text-indigo-600 transition">🎯 ติดต่อเรา</a>
             <div class="pt-4 border-t border-slate-100 flex flex-col gap-3">
                 <a href="/login/" class="text-center text-sm font-semibold text-slate-700 hover:text-indigo-600 py-2 border border-slate-200 rounded-xl transition">เข้าสู่ระบบ</a>
+                <a href="{% url 'merchant_register' %}" class="text-center text-sm font-semibold text-indigo-700 hover:text-indigo-800 py-2 border border-indigo-200 rounded-xl transition">สมัครบัญชีร้านค้า</a>
             </div>
         </div>
     </nav>

@@ -1,7 +1,9 @@
 from django.urls import path
 from .views_auth import merchant_login, merchant_logout
 from .views import (
-    merchant_dashboard, staff_order_screen, staff_manage, staff_toggle_active,
+    merchant_dashboard, merchant_register, restaurant_pending,
+    restaurant_approval_list, toggle_restaurant_active,
+    staff_order_screen, staff_manage, staff_toggle_active,
     customer_storefront, place_order, order_success,
     online_storefront, place_online_order, online_order_success,
     online_order_receipt, view_online_payment_slip, online_payment_slip_image, review_online_payment, checkout_online_order,
@@ -27,6 +29,14 @@ urlpatterns = [
     # ระบบล็อกอิน / ออกจากระบบ
     path('login/', merchant_login, name='merchant_login'),
     path('logout/', merchant_logout, name='merchant_logout'),
+    path('register/', merchant_register, name='merchant_register'),
+    path('account/pending/', restaurant_pending, name='restaurant_pending'),
+    path('platform/restaurants/approval/', restaurant_approval_list, name='restaurant_approval_list'),
+    path(
+        'platform/restaurants/<int:restaurant_id>/toggle/',
+        toggle_restaurant_active,
+        name='toggle_restaurant_active',
+    ),
 
     # หน้าร้านสำหรับลูกค้าแบบระบุโต๊ะ / โซน (ต้องมีชื่อ path ตรงกับใน HTML)
     path('store/<slug:slug>/table/<str:table_number>/', customer_storefront, name='customer_storefront_table'),
