@@ -11,7 +11,7 @@ from django.urls import reverse
 from django.utils import timezone
 from PIL import Image
 
-from .models import Category, MenuItem, Order, OrderItem, Restaurant
+from .models import Category, MenuItem, Order, OrderItem, Restaurant, RestaurantStaff, Table
 
 
 class OnlinePickupOrderTests(TestCase):
@@ -573,3 +573,178 @@ class OnlinePickupOrderTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'รูปแบบวันที่ไม่ถูกต้อง')
         self.assertNotContains(response, f'#{paid_order.id}')
+
+    def test_owner_can_create_staff_account_and_staff_login_is_pos_only(self):
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse('staff_manage', args=[self.restaurant.slug]),
+            {
+                'username': 'counter-staff',
+                'email': 'counter@example.com',
+                'password1': 'CoffeeCounter!78xz',
+                'password2': 'CoffeeCounter!78xz',
+            },
+        )
+
+        self.assertRedirects(response, reverse('staff_manage', args=[self.restaurant.slug]))
+        staff_account = get_user_model().objects.get(username='counter-staff')
+        staff_membership = RestaurantStaff.objects.get(user=staff_account)
+        self.assertEqual(staff_membership.restaurant, self.restaurant)
+        self.assertFalse(staff_account.is_staff)
+        self.assertFalse(staff_account.is_superuser)
+
+        self.client.logout()
+        response = self.client.post(
+            reverse('merchant_login'),
+            {'username': 'counter-staff', 'password': 'CoffeeCounter!78xz'},
+        )
+        self.assertRedirects(response, reverse('staff_order_screen', args=[self.restaurant.slug]))
+        self.assertEqual(
+            self.client.get(reverse('staff_order_screen', args=[self.restaurant.slug])).status_code,
+            200,
+        )
+        self.assertEqual(
+            self.client.get(reverse('merchant_dashboard', args=[self.restaurant.slug])).status_code,
+            403,
+        )
+        self.assertEqual(
+            self.client.get(reverse('staff_manage', args=[self.restaurant.slug])).status_code,
+            403,
+        )
+
+    def test_staff_dine_in_order_is_sent_to_kitchen_and_added_to_table_bill(self):
+        table = Table.objects.create(restaurant=self.restaurant, name='A1')
+        staff_user = get_user_model().objects.create_user(
+            username='dine-in-staff',
+            password='test-pass',
+        )
+        RestaurantStaff.objects.create(restaurant=self.restaurant, user=staff_user)
+        self.client.force_login(staff_user)
+
+        response = self.client.post(
+            reverse('staff_order_screen', args=[self.restaurant.slug]),
+            {
+                'sale_type': 'table',
+                'table_id': table.id,
+                'customer_name': 'ลูกค้าหน้าร้าน',
+                f'quantity_{self.menu_item.id}': '2',
+            },
+        )
+
+        order = Order.objects.get(restaurant=self.restaurant)
+        self.assertRedirects(
+            response,
+            f"{reverse('staff_order_screen', args=[self.restaurant.slug])}?order={order.id}",
+        )
+        self.assertEqual(order.order_type, 'table')
+        self.assertEqual(order.table_number, table.name)
+        self.assertEqual(order.created_by, staff_user)
+        self.assertEqual(order.total_price, Decimal('100.00'))
+        self.assertEqual(order.items.get().quantity, 2)
+        self.assertContains(self.client.get(response.url), f'ออร์เดอร์ #{order.id} เข้าครัวแล้ว')
+
+        self.client.force_login(self.user)
+        kitchen_response = self.client.get(reverse('merchant_orders', args=[self.restaurant.slug]))
+        self.assertContains(kitchen_response, f'ออร์เดอร์ #{order.id}')
+        bill_response = self.client.get(
+            reverse('table_bill_summary', args=[self.restaurant.slug, table.name]),
+        )
+        self.assertContains(bill_response, 'ข้าวผัด')
+        self.assertContains(bill_response, '฿100.00')
+
+    def test_takeaway_staff_orders_have_individual_bills_and_can_be_checked_out(self):
+        staff_user = get_user_model().objects.create_user(
+            username='takeaway-staff',
+            password='test-pass',
+        )
+        RestaurantStaff.objects.create(restaurant=self.restaurant, user=staff_user)
+        self.client.force_login(staff_user)
+        pos_url = reverse('staff_order_screen', args=[self.restaurant.slug])
+
+        created_orders = []
+        for _ in range(2):
+            response = self.client.post(
+                pos_url,
+                {
+                    'sale_type': 'counter',
+                    f'quantity_{self.menu_item.id}': '1',
+                },
+            )
+            self.assertEqual(response.status_code, 302)
+            created_orders.append(Order.objects.latest('id'))
+
+        first_order, second_order = created_orders
+        self.assertEqual(first_order.order_type, 'counter')
+        self.assertEqual(first_order.table_number, f'TAKEOUT-{first_order.id}')
+        self.assertNotEqual(first_order.table_number, second_order.table_number)
+
+        first_bill = self.client.get(
+            reverse('table_bill_summary', args=[self.restaurant.slug, first_order.table_number]),
+        )
+        self.assertContains(first_bill, 'ออร์เดอร์กลับบ้าน')
+        self.assertContains(first_bill, '฿50.00')
+        self.assertEqual(len(first_bill.context['unpaid_orders']), 1)
+
+        self.client.force_login(self.user)
+        self.client.post(
+            reverse('checkout_table_order', args=[self.restaurant.slug, first_order.table_number]),
+        )
+        first_order.refresh_from_db()
+        second_order.refresh_from_db()
+        self.assertTrue(first_order.is_paid)
+        self.assertEqual(first_order.status, 'completed')
+        self.assertFalse(second_order.is_paid)
+
+    def test_disabling_staff_account_blocks_the_existing_session(self):
+        staff_user = get_user_model().objects.create_user(
+            username='disabled-staff',
+            password='test-pass',
+        )
+        staff_membership = RestaurantStaff.objects.create(
+            restaurant=self.restaurant,
+            user=staff_user,
+        )
+        self.client.force_login(staff_user)
+
+        self.client.force_login(self.user)
+        self.client.post(
+            reverse('staff_toggle_active', args=[self.restaurant.slug, staff_membership.id]),
+        )
+
+        self.client.force_login(staff_user)
+        self.assertEqual(
+            self.client.get(reverse('staff_order_screen', args=[self.restaurant.slug])).status_code,
+            403,
+        )
+        self.client.logout()
+        response = self.client.post(
+            reverse('merchant_login'),
+            {'username': 'disabled-staff', 'password': 'test-pass'},
+        )
+        self.assertContains(response, 'ถูกปิดใช้งาน')
+
+    def test_staff_cannot_submit_order_for_another_restaurants_table(self):
+        foreign_restaurant = Restaurant.objects.create(
+            user=get_user_model().objects.create_user(username='other-owner', password='test-pass'),
+            name='Other Restaurant',
+            slug='other-restaurant',
+            owner_name='Other Owner',
+            phone='0811111111',
+        )
+        foreign_table = Table.objects.create(restaurant=foreign_restaurant, name='B1')
+        staff_user = get_user_model().objects.create_user(username='secure-staff', password='test-pass')
+        RestaurantStaff.objects.create(restaurant=self.restaurant, user=staff_user)
+        self.client.force_login(staff_user)
+
+        response = self.client.post(
+            reverse('staff_order_screen', args=[self.restaurant.slug]),
+            {
+                'sale_type': 'table',
+                'table_id': foreign_table.id,
+                f'quantity_{self.menu_item.id}': '1',
+            },
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertContains(response, 'ไม่พบโต๊ะที่เลือก', status_code=400)
+        self.assertFalse(Order.objects.filter(restaurant=self.restaurant).exists())

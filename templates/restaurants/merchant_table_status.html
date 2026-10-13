@@ -15,6 +15,9 @@
                 {% if is_pickup %}
                 <h1 class="text-xl font-bold text-indigo-600">⚙️ จัดการสถานะออร์เดอร์รับที่ร้าน</h1>
                 <p class="text-xs text-gray-500">อัปเดตสถานะอาหารตามเวลารับที่ลูกค้านัดไว้</p>
+                {% elif is_counter %}
+                <h1 class="text-xl font-bold text-indigo-600">⚙️ จัดการสถานะออร์เดอร์กลับบ้าน</h1>
+                <p class="text-xs text-gray-500">อัปเดตสถานะอาหารสำหรับออร์เดอร์หน้าร้าน</p>
                 {% else %}
                 <h1 class="text-xl font-bold text-indigo-600">⚙️ จัดการสถานะออร์เดอร์: โต๊ะ {{ table_number }}</h1>
                 <p class="text-xs text-gray-500">อัปเดตสถานะการทำรายการของลูกค้าโต๊ะนี้</p>

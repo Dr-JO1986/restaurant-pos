@@ -85,6 +85,7 @@ class Order(models.Model):
     ORDER_TYPE_CHOICES = (
         ('table', 'รับประทานที่ร้าน'),
         ('pickup', 'สั่งออนไลน์ รับที่ร้าน'),
+        ('counter', 'หน้าร้าน รับกลับบ้าน'),
     )
     STATUS_CHOICES = (
         ('pending', 'รอดำเนินการ'),
@@ -99,6 +100,14 @@ class Order(models.Model):
         ('rejected', 'ปฏิเสธสลิป'),
     )
     restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE, related_name='orders')
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_restaurant_orders',
+        verbose_name="ผู้บันทึกออร์เดอร์",
+    )
     table_number = models.CharField(max_length=50, verbose_name="เลขโต๊ะ / โซน")
     order_type = models.CharField(max_length=20, choices=ORDER_TYPE_CHOICES, default='table', verbose_name="ประเภทออร์เดอร์")
     customer_name = models.CharField(max_length=100, blank=True, null=True, verbose_name="ชื่อผู้สั่ง")
@@ -149,6 +158,32 @@ class Table(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.restaurant.name})"
+
+
+class RestaurantStaff(models.Model):
+    restaurant = models.ForeignKey(
+        Restaurant,
+        on_delete=models.CASCADE,
+        related_name='staff_members',
+        verbose_name="ร้านอาหาร",
+    )
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='restaurant_staff',
+        verbose_name="บัญชีพนักงาน",
+    )
+    is_active = models.BooleanField(default=True, verbose_name="เปิดใช้งาน")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ('user__username',)
+        verbose_name = "พนักงานร้าน"
+        verbose_name_plural = "พนักงานร้าน"
+
+    def __str__(self):
+        return f"{self.user.get_username()} ({self.restaurant.name})"
+
 
 class TransactionRecord(models.Model):
     """ โมเดลสำหรับบันทึกรายรับอื่นๆ หรือรายจ่ายของร้าน (เช่น ค่าวัตถุดิบ, ค่าน้ำ-ค่าไฟ) """

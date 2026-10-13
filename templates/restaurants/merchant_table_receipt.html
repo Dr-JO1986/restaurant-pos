@@ -27,6 +27,8 @@
             <div class="inline-block bg-indigo-50 text-indigo-700 px-4 py-1.5 rounded-full text-xs font-bold mt-3">
                 {% if first_order.order_type == 'pickup' %}
                 🛍️ ออร์เดอร์รับที่ร้าน
+                {% elif first_order.order_type == 'counter' %}
+                🥡 ออร์เดอร์กลับบ้าน
                 {% else %}
                 📍 โต๊ะ / โซน: {{ table_number }}
                 {% endif %}
@@ -50,7 +52,9 @@
             <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100 space-y-3">
                 <div class="flex justify-between text-xs font-bold text-gray-700 border-b pb-2">
                     <span>ออร์เดอร์ #{{ order.id }} {% if order.customer_name %}({{ order.customer_name }}){% endif %}</span>
-                    <span class="text-emerald-600 font-semibold">ชำระเงินแล้ว</span>
+                    <span class="{% if order.is_paid %}text-emerald-600{% else %}text-amber-600{% endif %} font-semibold">
+                        {% if order.is_paid %}ชำระเงินแล้ว{% else %}รอชำระเงิน{% endif %}
+                    </span>
                 </div>
                 {% if order.order_type == 'pickup' %}
                 <div class="text-xs text-gray-600">

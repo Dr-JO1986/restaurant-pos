@@ -11,7 +11,7 @@
 <body class="bg-gray-50 text-gray-800">
     <!-- Navigation Bar -->
     <nav class="bg-indigo-600 text-white shadow-md">
-        <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex flex-wrap justify-between items-center gap-3">
             <div>
                 <h1 class="text-xl font-bold">🏪 {{ restaurant.name }} 
                     <span class="text-xs bg-indigo-500 px-2 py-1 rounded ml-2">{{ restaurant.get_restaurant_type_display }}</span>
@@ -27,6 +27,12 @@
                     </a>
                     <a href="{% url 'merchant_orders' restaurant.slug %}" class="bg-emerald-500 hover:bg-emerald-600 text-white text-xs px-3 py-1.5 rounded-lg transition font-medium shadow-sm">
                     🛎️ ดูออร์เดอร์ลูกค้า (Kitchen)
+                    </a>
+                    <a href="{% url 'staff_order_screen' restaurant.slug %}" class="bg-amber-500 hover:bg-amber-600 text-white text-xs px-3 py-1.5 rounded-lg transition font-medium shadow-sm">
+                        🧾 คีย์ออร์เดอร์หน้าร้าน
+                    </a>
+                    <a href="{% url 'staff_manage' restaurant.slug %}" class="bg-white/15 hover:bg-white/25 text-white text-xs px-3 py-1.5 rounded-lg transition font-medium shadow-sm">
+                        👥 จัดการพนักงาน
                     </a>
               </div>
             <div class="flex items-center gap-4">

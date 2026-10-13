@@ -22,7 +22,7 @@
             <h1 class="text-xl font-bold text-gray-900">🏪 {{ restaurant.name }}</h1>
             <p class="text-xs text-gray-500">{{ restaurant.get_restaurant_type_display }}</p>
             <div class="mt-3 inline-block bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold">
-                📍 โซนบริการ: {{ table_number }}
+                {% if is_counter_order %}🥡 ออร์เดอร์กลับบ้าน{% else %}📍 โซนบริการ: {{ table_number }}{% endif %}
             </div>
         </div>
 
@@ -82,9 +82,11 @@
             <button onclick="window.print();" class="w-full bg-gray-800 hover:bg-gray-900 text-white font-medium py-2.5 rounded-xl text-sm transition shadow-sm">
                 🖨️ พิมพ์ / ดาวน์โหลดใบเสร็จ (PDF)
             </button>
+            {% if not is_counter_order %}
             <a href="{% url 'customer_storefront_table' restaurant.slug table_number %}" class="block text-center w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-xl text-sm transition shadow-md">
                 ➕ สั่งสินค้าเพิ่ม
             </a>
+            {% endif %}
         </div>
     </div>
 

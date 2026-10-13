@@ -1,7 +1,7 @@
 from django.urls import path
 from .views_auth import merchant_login, merchant_logout
 from .views import (
-    merchant_dashboard, 
+    merchant_dashboard, staff_order_screen, staff_manage, staff_toggle_active,
     customer_storefront, place_order, order_success,
     online_storefront, place_online_order, online_order_success,
     online_order_receipt, view_online_payment_slip, online_payment_slip_image, review_online_payment, checkout_online_order,
@@ -45,6 +45,9 @@ urlpatterns = [
 
     # หน้าหลังบ้านสำหรับเจ้าของร้าน
     path('store/<slug:slug>/manage/', merchant_dashboard, name='merchant_dashboard'),
+    path('store/<slug:slug>/manage/pos/', staff_order_screen, name='staff_order_screen'),
+    path('store/<slug:slug>/manage/staff/', staff_manage, name='staff_manage'),
+    path('store/<slug:slug>/manage/staff/<int:staff_id>/toggle/', staff_toggle_active, name='staff_toggle_active'),
     path('store/<slug:slug>/manage/tables/', merchant_tables, name='merchant_tables'),
     path('store/<slug:slug>/manage/tables/<int:table_id>/delete/', delete_table, name='delete_table'),
     path('store/<slug:slug>/manage/orders/', merchant_orders, name='merchant_orders'),

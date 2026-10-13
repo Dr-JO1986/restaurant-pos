@@ -1,4 +1,5 @@
 from django.shortcuts import render, get_object_or_404, redirect
+from django.urls import reverse
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -9,10 +10,10 @@ from django.utils.html import escape
 from django.utils.dateparse import parse_date, parse_datetime
 from pathlib import Path
 from .models import (
-    Restaurant, MenuItem, Category, Order, OrderItem, Table, TransactionRecord,
+    Restaurant, RestaurantStaff, MenuItem, Category, Order, OrderItem, Table, TransactionRecord,
     ContactInquiry, validate_payment_slip,
 )
-from .forms import MenuItemForm, CategoryForm
+from .forms import MenuItemForm, CategoryForm, StaffAccountCreationForm
 from django.utils import timezone
 from django.core.paginator import Paginator
 from django.db.models import Q
@@ -20,6 +21,20 @@ from django.db.models.functions import ExtractYear, ExtractMonth, ExtractDay
 from django.db.models.functions import TruncDate
 from django.db.models import Sum, F
 from django.views.decorators.http import require_POST
+
+
+def _can_manage_restaurant(request, restaurant):
+    return restaurant.user == request.user or request.user.is_superuser
+
+
+def _can_place_staff_order(request, restaurant):
+    if _can_manage_restaurant(request, restaurant):
+        return True
+    return RestaurantStaff.objects.filter(
+        restaurant=restaurant,
+        user=request.user,
+        is_active=True,
+    ).exists()
 
 
 def landing_page(request):
@@ -95,6 +110,159 @@ def merchant_dashboard(request, slug):
         'menu_form': menu_form,
     }
     return render(request, 'restaurants/dashboard.html', context)
+
+
+@login_required(login_url='/login/')
+def staff_order_screen(request, slug):
+    restaurant = get_object_or_404(Restaurant, slug=slug, is_active=True)
+    if not _can_place_staff_order(request, restaurant):
+        return HttpResponseForbidden()
+
+    categories = restaurant.categories.all()
+    menu_items = list(
+        restaurant.menu_items.filter(is_available=True)
+        .select_related('category')
+        .order_by('category__name', 'name')
+    )
+    tables = restaurant.tables.all().order_by('name')
+    error = ''
+    recent_order = None
+    recent_order_id = request.GET.get('order', '')
+    if recent_order_id.isdigit():
+        recent_order = restaurant.orders.filter(
+            pk=recent_order_id,
+            created_by=request.user,
+        ).first()
+
+    if request.method == 'POST':
+        sale_type = request.POST.get('sale_type', '')
+        customer_name = request.POST.get('customer_name', '').strip()
+        table = None
+        selected_items = []
+
+        if sale_type not in {'table', 'counter'}:
+            error = 'กรุณาเลือกประเภทการขาย'
+        elif sale_type == 'table':
+            table_id = request.POST.get('table_id', '')
+            if not table_id.isdigit():
+                error = 'กรุณาเลือกโต๊ะ'
+            else:
+                table = restaurant.tables.filter(pk=table_id).first()
+                if table is None:
+                    error = 'ไม่พบโต๊ะที่เลือก กรุณาเลือกโต๊ะของร้านนี้'
+        if not error and len(customer_name) > 100:
+            error = 'ชื่อผู้สั่งต้องมีความยาวไม่เกิน 100 ตัวอักษร'
+
+        if not error:
+            for menu_item in menu_items:
+                raw_quantity = request.POST.get(f'quantity_{menu_item.id}', '0')
+                try:
+                    quantity = int(raw_quantity)
+                except (TypeError, ValueError):
+                    error = 'จำนวนสินค้าไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง'
+                    break
+                if quantity < 0 or quantity > 99:
+                    error = 'จำนวนสินค้าต้องอยู่ระหว่าง 0 ถึง 99 ชิ้น'
+                    break
+                if quantity:
+                    selected_items.append((menu_item, quantity))
+
+            if not error and not selected_items:
+                error = 'กรุณาเลือกเมนูอย่างน้อย 1 รายการ'
+
+        if not error:
+            with transaction.atomic():
+                order = Order.objects.create(
+                    restaurant=restaurant,
+                    created_by=request.user,
+                    table_number=table.name if table else 'COUNTER',
+                    order_type='table' if table else 'counter',
+                    customer_name=customer_name or None,
+                    status='pending',
+                    is_paid=False,
+                    total_price=0,
+                )
+                total_price = 0
+                for menu_item, quantity in selected_items:
+                    OrderItem.objects.create(
+                        order=order,
+                        menu_item=menu_item,
+                        quantity=quantity,
+                        price=menu_item.price,
+                        status='pending',
+                    )
+                    total_price += menu_item.price * quantity
+                if not table:
+                    order.table_number = f'TAKEOUT-{order.id}'
+                order.total_price = total_price
+                order.save(update_fields=['table_number', 'total_price'])
+
+            messages.success(request, f'ส่งออร์เดอร์ #{order.id} เข้าครัวแล้ว')
+            return redirect(f"{reverse('staff_order_screen', args=[restaurant.slug])}?order={order.id}")
+
+        for menu_item in menu_items:
+            menu_item.order_quantity = request.POST.get(f'quantity_{menu_item.id}', '0')
+        selected_sale_type = sale_type if sale_type in {'table', 'counter'} else ''
+        selected_table_id = request.POST.get('table_id', '')
+        return render(request, 'restaurants/staff_order_screen.html', {
+            'restaurant': restaurant,
+            'categories': categories,
+            'menu_items': menu_items,
+            'tables': tables,
+            'error': error,
+            'customer_name': customer_name,
+            'selected_sale_type': selected_sale_type,
+            'selected_table_id': selected_table_id,
+            'can_place_table_order': tables.exists(),
+            'recent_order': recent_order,
+        }, status=400)
+
+    return render(request, 'restaurants/staff_order_screen.html', {
+        'restaurant': restaurant,
+        'categories': categories,
+        'menu_items': menu_items,
+        'tables': tables,
+        'can_place_table_order': tables.exists(),
+        'recent_order': recent_order,
+    })
+
+
+@login_required(login_url='/login/')
+def staff_manage(request, slug):
+    restaurant = get_object_or_404(Restaurant, slug=slug)
+    if not _can_manage_restaurant(request, restaurant):
+        return HttpResponseForbidden()
+
+    form = StaffAccountCreationForm()
+    if request.method == 'POST':
+        form = StaffAccountCreationForm(request.POST)
+        if form.is_valid():
+            with transaction.atomic():
+                user = form.save()
+                RestaurantStaff.objects.create(restaurant=restaurant, user=user)
+            messages.success(request, f'สร้างบัญชีพนักงาน "{user.get_username()}" แล้ว')
+            return redirect('staff_manage', slug=restaurant.slug)
+
+    return render(request, 'restaurants/staff_manage.html', {
+        'restaurant': restaurant,
+        'form': form,
+        'staff_members': restaurant.staff_members.select_related('user'),
+    })
+
+
+@login_required(login_url='/login/')
+@require_POST
+def staff_toggle_active(request, slug, staff_id):
+    restaurant = get_object_or_404(Restaurant, slug=slug)
+    if not _can_manage_restaurant(request, restaurant):
+        return HttpResponseForbidden()
+
+    staff = get_object_or_404(RestaurantStaff, pk=staff_id, restaurant=restaurant)
+    staff.is_active = not staff.is_active
+    staff.save(update_fields=['is_active'])
+    status_text = 'เปิดใช้งาน' if staff.is_active else 'ปิดใช้งาน'
+    messages.success(request, f'{status_text}บัญชีพนักงาน "{staff.user.get_username()}" แล้ว')
+    return redirect('staff_manage', slug=restaurant.slug)
 
 @login_required(login_url='/login/')
 def edit_menu_item(request, slug, pk):
@@ -592,6 +760,7 @@ def merchant_orders(request, slug):
     ).order_by('created_at')
     unpaid_orders = restaurant.orders.filter(
         Q(order_type='table', is_paid=False)
+        | Q(order_type='counter', is_paid=False)
         | Q(order_type='pickup', payment_status='confirmed', is_collected=False)
     ).order_by('-created_at')
     
@@ -703,7 +872,14 @@ def delete_table(request, slug, table_id):
 @login_required(login_url='/login/')
 def checkout_table_order(request, slug, table_number):
     restaurant = get_object_or_404(Restaurant, slug=slug)
-    orders = restaurant.orders.filter(table_number=table_number, is_paid=False)
+    if restaurant.user != request.user and not request.user.is_superuser:
+        return HttpResponseForbidden()
+
+    orders = restaurant.orders.filter(
+        table_number=table_number,
+        is_paid=False,
+        order_type__in=['table', 'counter'],
+    )
     
     if request.method == 'POST':
         orders.update(is_paid=True, status='completed')
@@ -743,6 +919,7 @@ def table_bill_summary(request, slug, table_number):
         'table_number': table_number,
         'unpaid_orders': unpaid_orders,
         'grand_total': grand_total,
+        'is_counter_order': unpaid_orders.filter(order_type='counter').exists(),
     }
     return render(request, 'restaurants/bill_summary.html', context)
 
@@ -810,6 +987,9 @@ def merchant_table_receipt(request, slug, table_number):
 @login_required(login_url='/login/')
 def update_order_item_status(request, slug, item_id):
     restaurant = get_object_or_404(Restaurant, slug=slug)
+    if restaurant.user != request.user and not request.user.is_superuser:
+        return render(request, 'restaurants/403.html', status=403)
+
     item = get_object_or_404(OrderItem, id=item_id, order__restaurant=restaurant)
 
     if item.order.order_type == 'pickup' and (
@@ -883,6 +1063,7 @@ def merchant_table_status_manage(request, slug, table_number):
 
     table_orders = restaurant.orders.filter(table_number=table_number).filter(
         Q(order_type='table', is_paid=False)
+        | Q(order_type='counter', is_paid=False)
         | Q(order_type='pickup', payment_status='confirmed', is_collected=False)
     ).order_by('created_at')
 
@@ -891,6 +1072,7 @@ def merchant_table_status_manage(request, slug, table_number):
         'table_number': table_number,
         'table_orders': table_orders,
         'is_pickup': table_orders.filter(order_type='pickup').exists(),
+        'is_counter': table_orders.filter(order_type='counter').exists(),
     }
     return render(request, 'restaurants/merchant_table_status.html', context)
 
