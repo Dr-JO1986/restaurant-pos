@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>สลิปโอนเงินออร์เดอร์ #{{ order.id }} - {{ restaurant.name }}</title>
+    <style>
+        body {
+            align-items: center;
+            background: #f3f4f6;
+            display: flex;
+            justify-content: center;
+            margin: 0;
+            min-height: 100vh;
+            padding: 16px;
+            box-sizing: border-box;
+        }
+        img {
+            height: auto;
+            max-height: calc(100vh - 32px);
+            max-width: 100%;
+            object-fit: contain;
+        }
+    </style>
+</head>
+<body>
+    <img src="{% url 'online_payment_slip_image' restaurant.slug order.id %}" alt="สลิปโอนเงินออร์เดอร์ #{{ order.id }}">
+</body>
+</html>

@@ -313,6 +313,11 @@ class OnlinePickupOrderTests(TestCase):
 
         response = self.client.get(slip_url)
         self.assertEqual(response.status_code, 200)
+        image_url = reverse('online_payment_slip_image', args=[self.restaurant.slug, order.id])
+        self.assertContains(response, f'<img src="{image_url}"', html=False)
+
+        response = self.client.get(image_url)
+        self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Content-Type'], 'image/png')
         self.assertEqual(response['Content-Disposition'], 'inline')
         response.close()
@@ -320,6 +325,7 @@ class OnlinePickupOrderTests(TestCase):
         other_user = get_user_model().objects.create_user(username='other', password='test-pass')
         self.client.force_login(other_user)
         self.assertEqual(self.client.get(slip_url).status_code, 403)
+        self.assertEqual(self.client.get(image_url).status_code, 403)
         self.assertEqual(
             self.client.post(
                 reverse('review_online_payment', args=[self.restaurant.slug, order.id]),
@@ -338,7 +344,7 @@ class OnlinePickupOrderTests(TestCase):
         order.payment_slip.storage.delete(order.payment_slip.name)
 
         response = self.client.get(
-            reverse('view_online_payment_slip', args=[self.restaurant.slug, order.id]),
+            reverse('online_payment_slip_image', args=[self.restaurant.slug, order.id]),
         )
 
         self.assertEqual(response.status_code, 404)

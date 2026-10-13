@@ -2,7 +2,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.http import FileResponse, Http404, HttpResponse, HttpResponseForbidden, JsonResponse
 from django.utils.html import escape
@@ -418,9 +418,17 @@ def online_order_receipt(request, slug, token):
 
 @login_required(login_url='/login/')
 def view_online_payment_slip(request, slug, order_id):
+    order = _get_online_payment_slip_order(request, slug, order_id)
+    return render(request, 'restaurants/online_payment_slip.html', {
+        'restaurant': order.restaurant,
+        'order': order,
+    })
+
+
+def _get_online_payment_slip_order(request, slug, order_id):
     restaurant = get_object_or_404(Restaurant, slug=slug)
     if restaurant.user != request.user and not request.user.is_superuser:
-        return HttpResponseForbidden()
+        raise PermissionDenied
 
     order = get_object_or_404(
         Order,
@@ -432,7 +440,12 @@ def view_online_payment_slip(request, slug, order_id):
         raise Http404("ออร์เดอร์นี้ไม่มีไฟล์สลิปโอนเงิน")
     if not order.payment_slip.storage.exists(order.payment_slip.name):
         raise Http404("ไม่พบไฟล์สลิปโอนเงินในพื้นที่จัดเก็บ")
+    return order
 
+
+@login_required(login_url='/login/')
+def online_payment_slip_image(request, slug, order_id):
+    order = _get_online_payment_slip_order(request, slug, order_id)
     content_type = {
         '.jpg': 'image/jpeg',
         '.jpeg': 'image/jpeg',

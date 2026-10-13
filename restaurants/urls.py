@@ -4,7 +4,7 @@ from .views import (
     merchant_dashboard, 
     customer_storefront, place_order, order_success,
     online_storefront, place_online_order, online_order_success,
-    online_order_receipt, view_online_payment_slip, review_online_payment, checkout_online_order,
+    online_order_receipt, view_online_payment_slip, online_payment_slip_image, review_online_payment, checkout_online_order,
     edit_menu_item, delete_menu_item, 
     edit_category, delete_category, menu_item_image,
     merchant_orders, update_order_status,
@@ -37,6 +37,7 @@ urlpatterns = [
     path('store/<slug:slug>/online/success/<uuid:token>/', online_order_success, name='online_order_success'),
     path('store/<slug:slug>/online/receipt/<uuid:token>/', online_order_receipt, name='online_order_receipt'),
     path('store/<slug:slug>/manage/online-order/<int:order_id>/payment-slip/', view_online_payment_slip, name='view_online_payment_slip'),
+    path('store/<slug:slug>/manage/online-order/<int:order_id>/payment-slip/image/', online_payment_slip_image, name='online_payment_slip_image'),
     path('store/<slug:slug>/manage/online-order/<int:order_id>/review-payment/', review_online_payment, name='review_online_payment'),
 
     # API สำหรับดึงสถานะออร์เดอร์แบบ Real-time (AJAX)
