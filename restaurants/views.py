@@ -16,7 +16,8 @@ from .models import (
     ContactInquiry, validate_payment_slip,
 )
 from .forms import (
-    MenuItemForm, CategoryForm, StaffAccountCreationForm, MerchantRegistrationForm,
+    MenuItemForm, CategoryForm, StaffAccountCreationForm, StaffPasswordResetForm,
+    MerchantRegistrationForm,
 )
 from django.utils import timezone
 from django.core.paginator import Paginator
@@ -334,6 +335,34 @@ def staff_toggle_active(request, slug, staff_id):
     status_text = 'เปิดใช้งาน' if staff.is_active else 'ปิดใช้งาน'
     messages.success(request, f'{status_text}บัญชีพนักงาน "{staff.user.get_username()}" แล้ว')
     return redirect('staff_manage', slug=restaurant.slug)
+
+
+@login_required(login_url='/login/')
+def staff_reset_password(request, slug, staff_id):
+    restaurant = get_object_or_404(Restaurant, slug=slug)
+    if not _can_manage_restaurant(request, restaurant):
+        return HttpResponseForbidden()
+
+    staff = get_object_or_404(
+        RestaurantStaff.objects.select_related('user'),
+        pk=staff_id,
+        restaurant=restaurant,
+    )
+    form = StaffPasswordResetForm(
+        staff.user,
+        request.POST if request.method == 'POST' else None,
+    )
+    if request.method == 'POST' and form.is_valid():
+        form.save()
+        messages.success(request, f'ตั้งรหัสผ่านใหม่ให้บัญชี "{staff.user.get_username()}" แล้ว')
+        return redirect('staff_manage', slug=restaurant.slug)
+
+    return render(request, 'restaurants/staff_reset_password.html', {
+        'restaurant': restaurant,
+        'staff': staff,
+        'form': form,
+    })
+
 
 @login_required(login_url='/login/')
 def edit_menu_item(request, slug, pk):

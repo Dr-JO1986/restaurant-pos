@@ -57,12 +57,15 @@
                             {% if staff.is_active %}เปิดใช้งาน{% else %}ปิดใช้งาน{% endif %}
                         </span>
                     </div>
-                    <form method="post" action="{% url 'staff_toggle_active' restaurant.slug staff.id %}">
-                        {% csrf_token %}
-                        <button type="submit" class="rounded-lg px-3 py-2 text-xs font-semibold {% if staff.is_active %}bg-red-50 text-red-700{% else %}bg-emerald-50 text-emerald-700{% endif %}">
-                            {% if staff.is_active %}ปิดใช้งาน{% else %}เปิดใช้งาน{% endif %}
-                        </button>
-                    </form>
+                    <div class="flex shrink-0 flex-col gap-2">
+                        <a href="{% url 'staff_reset_password' restaurant.slug staff.id %}" class="rounded-lg bg-indigo-50 px-3 py-2 text-center text-xs font-semibold text-indigo-700 hover:bg-indigo-100">ตั้งรหัสผ่านใหม่</a>
+                        <form method="post" action="{% url 'staff_toggle_active' restaurant.slug staff.id %}">
+                            {% csrf_token %}
+                            <button type="submit" class="w-full rounded-lg px-3 py-2 text-xs font-semibold {% if staff.is_active %}bg-red-50 text-red-700{% else %}bg-emerald-50 text-emerald-700{% endif %}">
+                                {% if staff.is_active %}ปิดใช้งาน{% else %}เปิดใช้งาน{% endif %}
+                            </button>
+                        </form>
+                    </div>
                 </article>
                 {% empty %}
                 <p class="rounded-xl bg-slate-50 p-4 text-center text-sm text-slate-500">ยังไม่มีบัญชีพนักงาน</p>

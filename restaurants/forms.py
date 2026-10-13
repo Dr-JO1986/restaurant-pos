@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth import get_user_model
-from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.forms import SetPasswordForm, UserCreationForm
 from django.utils.text import slugify
 from .models import MenuItem, Category, RESTAURANT_TYPES, Restaurant
 
@@ -53,6 +53,18 @@ class StaffAccountCreationForm(UserCreationForm):
         if commit:
             user.save()
         return user
+
+
+class StaffPasswordResetForm(SetPasswordForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['new_password1'].label = 'รหัสผ่านใหม่'
+        self.fields['new_password2'].label = 'ยืนยันรหัสผ่านใหม่'
+        for field in self.fields.values():
+            field.widget.attrs.update({
+                'class': 'w-full rounded-lg border px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500',
+                'autocomplete': 'new-password',
+            })
 
 
 class MerchantRegistrationForm(UserCreationForm):

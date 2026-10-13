@@ -687,10 +687,30 @@ class OnlinePickupOrderTests(TestCase):
         self.assertFalse(staff_account.is_staff)
         self.assertFalse(staff_account.is_superuser)
 
+        reset_url = reverse(
+            'staff_reset_password',
+            args=[self.restaurant.slug, staff_membership.id],
+        )
+        response = self.client.get(reverse('staff_manage', args=[self.restaurant.slug]))
+        self.assertContains(response, reset_url)
+        response = self.client.post(reset_url, {
+            'new_password1': 'NewCoffeePass!829z',
+            'new_password2': 'NewCoffeePass!829y',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'The two password fields')
+        response = self.client.post(reset_url, {
+            'new_password1': 'NewCoffeePass!829z',
+            'new_password2': 'NewCoffeePass!829z',
+        })
+        self.assertRedirects(response, reverse('staff_manage', args=[self.restaurant.slug]))
+        staff_account.refresh_from_db()
+        self.assertTrue(staff_account.check_password('NewCoffeePass!829z'))
+
         self.client.logout()
         response = self.client.post(
             reverse('merchant_login'),
-            {'username': 'counter-staff', 'password': 'CoffeeCounter!78xz'},
+            {'username': 'counter-staff', 'password': 'NewCoffeePass!829z'},
         )
         self.assertRedirects(response, reverse('staff_order_screen', args=[self.restaurant.slug]))
         self.assertEqual(
@@ -705,6 +725,7 @@ class OnlinePickupOrderTests(TestCase):
             self.client.get(reverse('staff_manage', args=[self.restaurant.slug])).status_code,
             403,
         )
+        self.assertEqual(self.client.get(reset_url).status_code, 403)
 
     def test_staff_dine_in_order_is_sent_to_kitchen_and_added_to_table_bill(self):
         table = Table.objects.create(restaurant=self.restaurant, name='A1')
