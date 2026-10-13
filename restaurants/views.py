@@ -919,7 +919,7 @@ def table_bill_summary(request, slug, table_number):
     restaurant = get_object_or_404(Restaurant, slug=slug)
     unpaid_orders = restaurant.orders.filter(table_number=table_number, is_paid=False).order_by('created_at')
     grand_total = sum(order.total_price for order in unpaid_orders)
-    is_staff_order_user = RestaurantStaff.objects.filter(
+    is_staff_order_user = request.user.is_authenticated and RestaurantStaff.objects.filter(
         restaurant=restaurant,
         user=request.user,
         is_active=True,

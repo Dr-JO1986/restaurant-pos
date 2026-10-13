@@ -672,6 +672,44 @@ class OnlinePickupOrderTests(TestCase):
         self.assertContains(bill_response, 'ข้าวผัด')
         self.assertContains(bill_response, '฿100.00')
 
+    def test_anonymous_customer_can_view_thai_table_bill_from_encoded_url(self):
+        table_name = 'กระท่อมริมน้ำ 1'
+        Table.objects.create(restaurant=self.restaurant, name=table_name)
+        staff_user = get_user_model().objects.create_user(
+            username='thai-table-staff',
+            password='test-pass',
+        )
+        RestaurantStaff.objects.create(restaurant=self.restaurant, user=staff_user)
+        Order.objects.create(
+            restaurant=self.restaurant,
+            created_by=staff_user,
+            table_number=table_name,
+            order_type='table',
+            total_price=Decimal('100.00'),
+        )
+        Order.objects.create(
+            restaurant=self.restaurant,
+            table_number=table_name,
+            order_type='table',
+            total_price=Decimal('25.00'),
+        )
+        Order.objects.create(
+            restaurant=self.restaurant,
+            table_number=table_name,
+            order_type='table',
+            total_price=Decimal('900.00'),
+            is_paid=True,
+        )
+
+        bill_url = reverse('table_bill_summary', args=[self.restaurant.slug, table_name])
+        response = self.client.get(bill_url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, table_name)
+        self.assertContains(response, '฿125.00')
+        self.assertEqual(response.context['grand_total'], Decimal('125.00'))
+        self.assertEqual(len(response.context['unpaid_orders']), 2)
+
     def test_takeaway_staff_orders_have_individual_bills_and_can_be_checked_out(self):
         staff_user = get_user_model().objects.create_user(
             username='takeaway-staff',
