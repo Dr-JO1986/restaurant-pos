@@ -664,6 +664,11 @@ class OnlinePickupOrderTests(TestCase):
             response,
             f'href="{reverse("merchant_dashboard", args=[self.restaurant.slug])}"',
         )
+        response = self.client.get(reverse('staff_order_screen', args=[self.restaurant.slug]))
+        self.assertContains(
+            response,
+            f'href="{reverse("merchant_dashboard", args=[self.restaurant.slug])}"',
+        )
 
         response = self.client.post(
             reverse('staff_manage', args=[self.restaurant.slug]),

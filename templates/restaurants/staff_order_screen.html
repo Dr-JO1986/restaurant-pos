@@ -16,7 +16,12 @@
                 <h1 class="text-xl font-bold">🧾 คีย์ออร์เดอร์หน้าร้าน</h1>
                 <p class="text-sm opacity-90">{{ restaurant.name }}</p>
             </div>
-            <a href="{% url 'merchant_logout' %}" class="bg-white/15 hover:bg-white/25 px-3 py-2 rounded-lg text-xs">ออกจากระบบ</a>
+            <div class="flex items-center gap-2">
+                {% if can_manage_restaurant %}
+                <a href="{% url 'merchant_dashboard' restaurant.slug %}" class="bg-emerald-600 hover:bg-emerald-700 px-3 py-2 rounded-lg text-xs font-semibold">← กลับหน้าแดชบอร์ด</a>
+                {% endif %}
+                <a href="{% url 'merchant_logout' %}" class="bg-white/15 hover:bg-white/25 px-3 py-2 rounded-lg text-xs">ออกจากระบบ</a>
+            </div>
         </div>
     </header>
 

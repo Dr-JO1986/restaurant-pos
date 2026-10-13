@@ -273,6 +273,7 @@ def staff_order_screen(request, slug):
         selected_table_id = request.POST.get('table_id', '')
         return render(request, 'restaurants/staff_order_screen.html', {
             'restaurant': restaurant,
+            'can_manage_restaurant': _can_manage_restaurant(request, restaurant),
             'categories': categories,
             'menu_items': menu_items,
             'tables': tables,
@@ -286,6 +287,7 @@ def staff_order_screen(request, slug):
 
     return render(request, 'restaurants/staff_order_screen.html', {
         'restaurant': restaurant,
+        'can_manage_restaurant': _can_manage_restaurant(request, restaurant),
         'categories': categories,
         'menu_items': menu_items,
         'tables': tables,
