@@ -56,6 +56,13 @@ class StaffAccountCreationForm(UserCreationForm):
 
 
 class MerchantRegistrationForm(UserCreationForm):
+    email = forms.EmailField(
+        label='อีเมลสำหรับติดต่อ',
+        widget=forms.EmailInput(attrs={
+            'class': 'w-full rounded-lg border px-4 py-2',
+            'autocomplete': 'email',
+        }),
+    )
     restaurant_name = forms.CharField(
         max_length=255,
         label='ชื่อร้าน',
@@ -80,6 +87,15 @@ class MerchantRegistrationForm(UserCreationForm):
             'autocomplete': 'tel',
         }),
     )
+    address = forms.CharField(
+        required=False,
+        label='ที่อยู่ร้าน (ไม่บังคับ)',
+        widget=forms.Textarea(attrs={
+            'class': 'w-full rounded-lg border px-4 py-2',
+            'rows': 3,
+            'autocomplete': 'street-address',
+        }),
+    )
     restaurant_type = forms.ChoiceField(
         choices=RESTAURANT_TYPES,
         label='ประเภทร้าน',
@@ -88,7 +104,7 @@ class MerchantRegistrationForm(UserCreationForm):
 
     class Meta:
         model = get_user_model()
-        fields = ('username', 'restaurant_name', 'owner_name', 'phone', 'restaurant_type')
+        fields = ('username', 'email', 'restaurant_name', 'owner_name', 'phone', 'address', 'restaurant_type')
         widgets = {
             'username': forms.TextInput(attrs={
                 'class': 'w-full rounded-lg border px-4 py-2',
@@ -101,6 +117,7 @@ class MerchantRegistrationForm(UserCreationForm):
         user.is_staff = False
         user.is_superuser = False
         user.is_active = True
+        user.email = self.cleaned_data['email']
         if commit:
             user.save()
 
@@ -117,6 +134,7 @@ class MerchantRegistrationForm(UserCreationForm):
                 slug=slug,
                 owner_name=self.cleaned_data['owner_name'],
                 phone=self.cleaned_data['phone'],
+                address=self.cleaned_data['address'],
                 restaurant_type=self.cleaned_data['restaurant_type'],
                 is_active=False,
             )

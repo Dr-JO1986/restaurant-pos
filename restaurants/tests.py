@@ -174,11 +174,13 @@ class OnlinePickupOrderTests(TestCase):
             reverse('merchant_register'),
             {
                 'username': 'pending-merchant',
+                'email': 'merchant@example.com',
                 'password1': 'StrongPass!7xyZ',
                 'password2': 'StrongPass!7xyZ',
                 'restaurant_name': 'ร้านทดลองภาษาไทย',
                 'owner_name': 'เจ้าของร้าน',
                 'phone': '0812345678',
+                'address': 'กรุงเทพมหานคร',
                 'restaurant_type': 'cafe',
             },
         )
@@ -186,6 +188,8 @@ class OnlinePickupOrderTests(TestCase):
         self.assertRedirects(response, reverse('restaurant_pending'))
         user = get_user_model().objects.get(username='pending-merchant')
         restaurant = Restaurant.objects.get(user=user)
+        self.assertEqual(user.email, 'merchant@example.com')
+        self.assertEqual(restaurant.address, 'กรุงเทพมหานคร')
         self.assertFalse(restaurant.is_active)
         self.assertFalse(user.is_staff)
         self.assertFalse(user.is_superuser)
