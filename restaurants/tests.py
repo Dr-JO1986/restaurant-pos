@@ -314,6 +314,7 @@ class OnlinePickupOrderTests(TestCase):
         response = self.client.get(slip_url)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Content-Type'], 'image/png')
+        self.assertEqual(response['Content-Disposition'], 'inline')
         response.close()
 
         other_user = get_user_model().objects.create_user(username='other', password='test-pass')

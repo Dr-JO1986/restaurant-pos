@@ -444,6 +444,7 @@ def view_online_payment_slip(request, slug, order_id):
     except FileNotFoundError as error:
         raise Http404("ไม่พบไฟล์สลิปโอนเงินในพื้นที่จัดเก็บ") from error
     response = FileResponse(slip_file, content_type=content_type)
+    response['Content-Disposition'] = 'inline'
     response['Cache-Control'] = 'private, no-store'
     response['X-Content-Type-Options'] = 'nosniff'
     return response
