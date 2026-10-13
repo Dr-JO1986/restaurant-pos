@@ -32,14 +32,26 @@
         </div>
         {% endif %}
 
-        <div class="flex flex-wrap gap-2 mb-5">
+        <form method="get" action="{% url 'online_storefront' restaurant.slug %}" class="mb-5 md:hidden">
+            <label for="category-filter-mobile" class="block text-sm font-medium text-gray-700 mb-1">หมวดหมู่สินค้า</label>
+            <select id="category-filter-mobile" name="category" onchange="this.form.submit()" class="w-full bg-white border border-gray-300 text-gray-700 text-sm rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <option value="">ดูทั้งหมด</option>
+                {% for category in categories %}
+                <option value="{{ category.id }}" {% if selected_category.id == category.id %}selected{% endif %}>{{ category.name }}</option>
+                {% endfor %}
+            </select>
+        </form>
+
+        <nav aria-label="กรองเมนูตามหมวดหมู่" class="hidden md:flex flex-wrap gap-2 mb-5">
+            <a href="{% url 'online_storefront' restaurant.slug %}" class="{% if not selected_category %}bg-indigo-600 text-white border-indigo-600{% else %}bg-white text-gray-600 border-gray-200 hover:bg-indigo-50{% endif %} border text-xs px-3 py-1.5 rounded-full transition">ดูทั้งหมด</a>
             {% for category in categories %}
-            <span class="bg-white border text-gray-600 text-xs px-3 py-1.5 rounded-full">{{ category.name }}</span>
+            <a href="{% url 'online_storefront' restaurant.slug %}?category={{ category.id }}" class="{% if selected_category.id == category.id %}bg-indigo-600 text-white border-indigo-600{% else %}bg-white text-gray-600 border-gray-200 hover:bg-indigo-50{% endif %} border text-xs px-3 py-1.5 rounded-full transition">{{ category.name }}</a>
             {% endfor %}
-        </div>
+        </nav>
 
         <form action="{% url 'place_online_order' restaurant.slug %}" method="POST" enctype="multipart/form-data" id="onlineOrderForm">
             {% csrf_token %}
+            {% if selected_category %}<input type="hidden" name="category" value="{{ selected_category.id }}">{% endif %}
             <section class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {% for item in menu_items %}
                 <article class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex gap-4">
@@ -61,13 +73,13 @@
                     </div>
                 </article>
                 {% empty %}
-                <p class="col-span-full text-center text-gray-500 py-12">ขณะนี้ยังไม่มีเมนูพร้อมขาย</p>
+                <p class="col-span-full text-center text-gray-500 py-12">{% if selected_category %}ไม่มีเมนูพร้อมขายในหมวดหมู่นี้{% else %}ขณะนี้ยังไม่มีเมนูพร้อมขาย{% endif %}</p>
                 {% endfor %}
             </section>
 
             {% if menu_items %}
             <section class="bg-white p-5 rounded-2xl border shadow-sm mt-6 space-y-4">
-                <h2 class="font-bold text-gray-800">ชำระเงินล่วงหน้าและข้อมูลรับสินค้า</h2>
+                <h2 class="font-bold text-gray-800">กรอกข้อมูลการชำระเงินล่วงหน้าและรับสินค้าที่หน้าร้าน</h2>
                 {% if can_accept_online_orders %}
                 <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-4 text-sm">
                     <p class="font-bold text-indigo-900">โอนเงินเข้าบัญชีร้าน</p>

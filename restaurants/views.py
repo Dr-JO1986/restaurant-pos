@@ -243,10 +243,22 @@ def customer_storefront(request, slug, table_number):
 
 def online_storefront(request, slug):
     restaurant = get_object_or_404(Restaurant, slug=slug, is_active=True)
+    categories = restaurant.categories.all()
+    selected_category_id = request.GET.get('category')
+    selected_category = (
+        categories.filter(pk=selected_category_id).first()
+        if selected_category_id
+        else None
+    )
+    menu_items = restaurant.menu_items.filter(is_available=True).select_related('category')
+    if selected_category:
+        menu_items = menu_items.filter(category=selected_category)
+
     return render(request, 'restaurants/online_storefront.html', {
         'restaurant': restaurant,
-        'categories': restaurant.categories.all(),
-        'menu_items': restaurant.menu_items.filter(is_available=True).select_related('category'),
+        'categories': categories,
+        'menu_items': menu_items,
+        'selected_category': selected_category,
         'can_accept_online_orders': bool(
             restaurant.bank_name
             and restaurant.bank_account_name
@@ -259,6 +271,12 @@ def online_storefront(request, slug):
 def place_online_order(request, slug):
     restaurant = get_object_or_404(Restaurant, slug=slug, is_active=True)
     categories = restaurant.categories.all()
+    selected_category_id = request.POST.get('category')
+    selected_category = (
+        categories.filter(pk=selected_category_id).first()
+        if selected_category_id
+        else None
+    )
     menu_items = list(restaurant.menu_items.filter(is_available=True).select_related('category'))
     customer_name = request.POST.get('customer_name', '').strip()
     customer_phone = request.POST.get('customer_phone', '').strip()
@@ -314,10 +332,17 @@ def place_online_order(request, slug):
     if error:
         for menu_item in menu_items:
             menu_item.order_quantity = request.POST.get(f'quantity_{menu_item.id}', '0')
+        displayed_menu_items = menu_items
+        if selected_category:
+            displayed_menu_items = [
+                menu_item for menu_item in menu_items
+                if menu_item.category_id == selected_category.id
+            ]
         return render(request, 'restaurants/online_storefront.html', {
             'restaurant': restaurant,
             'categories': categories,
-            'menu_items': menu_items,
+            'menu_items': displayed_menu_items,
+            'selected_category': selected_category,
             'can_accept_online_orders': bool(
                 restaurant.bank_name
                 and restaurant.bank_account_name

@@ -124,6 +124,31 @@ class OnlinePickupOrderTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'ยังไม่ได้ตั้งค่าบัญชีรับโอน')
 
+    def test_online_storefront_filters_by_category_and_shows_responsive_filters(self):
+        dessert_category = Category.objects.create(
+            restaurant=self.restaurant,
+            name='ของหวาน',
+        )
+        MenuItem.objects.create(
+            restaurant=self.restaurant,
+            category=dessert_category,
+            name='เค้กช็อกโกแลต',
+            price=Decimal('75.00'),
+        )
+
+        response = self.client.get(
+            reverse('online_storefront', args=[self.restaurant.slug]),
+            {'category': dessert_category.id},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'เค้กช็อกโกแลต')
+        self.assertNotContains(response, 'ข้าวผัด')
+        self.assertContains(response, 'id="category-filter-mobile"')
+        self.assertContains(response, '<option value="">ดูทั้งหมด</option>', html=True)
+        self.assertContains(response, f'<option value="{dessert_category.id}" selected>', html=False)
+        self.assertContains(response, f'?category={dessert_category.id}')
+
     def test_owner_can_save_bank_transfer_details(self):
         self.client.force_login(self.user)
 
