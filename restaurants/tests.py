@@ -643,6 +643,26 @@ class OnlinePickupOrderTests(TestCase):
         self.assertEqual(order.items.get().quantity, 2)
         self.assertContains(self.client.get(response.url), f'ออร์เดอร์ #{order.id} เข้าครัวแล้ว')
 
+        staff_bill_url = reverse(
+            'table_bill_summary',
+            args=[self.restaurant.slug, table.name],
+        )
+        staff_bill_response = self.client.get(staff_bill_url)
+        self.assertContains(
+            staff_bill_response,
+            f"{reverse('staff_order_screen', args=[self.restaurant.slug])}?table_id={table.id}",
+        )
+        pos_response = self.client.get(
+            reverse('staff_order_screen', args=[self.restaurant.slug]),
+            {'table_id': table.id},
+        )
+        self.assertEqual(pos_response.status_code, 200)
+        self.assertContains(
+            pos_response,
+            f'<option value="{table.id}" selected>{table.name}</option>',
+            html=True,
+        )
+
         self.client.force_login(self.user)
         kitchen_response = self.client.get(reverse('merchant_orders', args=[self.restaurant.slug]))
         self.assertContains(kitchen_response, f'ออร์เดอร์ #{order.id}')

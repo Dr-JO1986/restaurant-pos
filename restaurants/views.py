@@ -127,6 +127,10 @@ def staff_order_screen(request, slug):
     tables = restaurant.tables.all().order_by('name')
     error = ''
     recent_order = None
+    selected_table_id = request.GET.get('table_id', '')
+    if not selected_table_id.isdigit() or not tables.filter(pk=selected_table_id).exists():
+        selected_table_id = ''
+    selected_sale_type = 'table' if selected_table_id else ''
     recent_order_id = request.GET.get('order', '')
     if recent_order_id.isdigit():
         recent_order = restaurant.orders.filter(
@@ -223,6 +227,8 @@ def staff_order_screen(request, slug):
         'menu_items': menu_items,
         'tables': tables,
         'can_place_table_order': tables.exists(),
+        'selected_sale_type': selected_sale_type,
+        'selected_table_id': selected_table_id,
         'recent_order': recent_order,
     })
 
@@ -913,6 +919,12 @@ def table_bill_summary(request, slug, table_number):
     restaurant = get_object_or_404(Restaurant, slug=slug)
     unpaid_orders = restaurant.orders.filter(table_number=table_number, is_paid=False).order_by('created_at')
     grand_total = sum(order.total_price for order in unpaid_orders)
+    is_staff_order_user = RestaurantStaff.objects.filter(
+        restaurant=restaurant,
+        user=request.user,
+        is_active=True,
+    ).exists()
+    table = restaurant.tables.filter(name=table_number).first()
 
     context = {
         'restaurant': restaurant,
@@ -920,6 +932,8 @@ def table_bill_summary(request, slug, table_number):
         'unpaid_orders': unpaid_orders,
         'grand_total': grand_total,
         'is_counter_order': unpaid_orders.filter(order_type='counter').exists(),
+        'is_staff_order_user': is_staff_order_user,
+        'table_id': table.id if table else None,
     }
     return render(request, 'restaurants/bill_summary.html', context)
 
