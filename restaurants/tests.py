@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 from decimal import Decimal
 from io import BytesIO
 import tempfile
@@ -519,3 +519,57 @@ class OnlinePickupOrderTests(TestCase):
             {'order_id': table_order.id},
         )
         self.assertNotContains(table_receipt, 'เปิดดูสลิปโอนเงิน')
+
+    def test_paid_order_history_filters_by_date_and_text_fields(self):
+        self.client.force_login(self.user)
+        older_date = timezone.localdate() - timedelta(days=2)
+        selected_date = timezone.localdate() - timedelta(days=1)
+        older_order = Order.objects.create(
+            restaurant=self.restaurant,
+            table_number='A1',
+            customer_name='ลูกค้าคนแรก',
+            total_price=Decimal('50.00'),
+            is_paid=True,
+        )
+        selected_order = Order.objects.create(
+            restaurant=self.restaurant,
+            table_number='A2',
+            customer_name='ลูกค้าคนที่สอง',
+            total_price=Decimal('75.00'),
+            is_paid=True,
+        )
+        older_order.created_at = timezone.make_aware(datetime.combine(older_date, datetime.min.time()))
+        older_order.save(update_fields=['created_at'])
+        selected_order.created_at = timezone.make_aware(datetime.combine(selected_date, datetime.min.time()))
+        selected_order.save(update_fields=['created_at'])
+
+        base_url = reverse('merchant_orders', args=[self.restaurant.slug])
+        response = self.client.get(base_url, {'date': selected_date.isoformat()})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, f'name="q"')
+        self.assertContains(response, f'type="date" name="date" value="{selected_date.isoformat()}"')
+        self.assertContains(response, f'#{selected_order.id}')
+        self.assertNotContains(response, f'#{older_order.id}')
+
+        response = self.client.get(base_url, {'q': 'A1'})
+        self.assertContains(response, f'#{older_order.id}')
+        self.assertNotContains(response, f'#{selected_order.id}')
+
+    def test_paid_order_history_shows_error_for_invalid_date_filter(self):
+        self.client.force_login(self.user)
+        paid_order = Order.objects.create(
+            restaurant=self.restaurant,
+            table_number='A1',
+            total_price=Decimal('50.00'),
+            is_paid=True,
+        )
+
+        response = self.client.get(
+            reverse('merchant_orders', args=[self.restaurant.slug]),
+            {'date': 'not-a-date'},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'รูปแบบวันที่ไม่ถูกต้อง')
+        self.assertNotContains(response, f'#{paid_order.id}')

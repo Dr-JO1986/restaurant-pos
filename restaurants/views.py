@@ -6,7 +6,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.http import FileResponse, Http404, HttpResponse, HttpResponseForbidden, JsonResponse
 from django.utils.html import escape
-from django.utils.dateparse import parse_datetime
+from django.utils.dateparse import parse_date, parse_datetime
 from pathlib import Path
 from .models import (
     Restaurant, MenuItem, Category, Order, OrderItem, Table, TransactionRecord,
@@ -618,16 +618,29 @@ def merchant_orders(request, slug):
     ).order_by('-created_at')
     
     search_query = request.GET.get('q', '').strip()
+    search_date = request.GET.get('date', '').strip()
     if search_query:
         clean_id = search_query.replace('#', '')
         if clean_id.isdigit():
-            paid_orders_list = paid_orders_list.filter(Q(id=clean_id) | Q(table_number__icontains=search_query) | Q(customer_name__icontains=search_query))
+            paid_orders_list = paid_orders_list.filter(
+                Q(id=clean_id)
+                | Q(table_number__icontains=search_query)
+                | Q(customer_name__icontains=search_query)
+            )
         else:
             paid_orders_list = paid_orders_list.filter(
-                Q(created_at__icontains=search_query) | 
-                Q(table_number__icontains=search_query) | 
+                Q(table_number__icontains=search_query) |
                 Q(customer_name__icontains=search_query)
             )
+
+    search_date_error = ''
+    if search_date:
+        parsed_search_date = parse_date(search_date)
+        if parsed_search_date is None:
+            search_date_error = 'รูปแบบวันที่ไม่ถูกต้อง กรุณาเลือกวันที่จากปฏิทิน'
+            paid_orders_list = paid_orders_list.none()
+        else:
+            paid_orders_list = paid_orders_list.filter(created_at__date=parsed_search_date)
 
     daily_total_sales = sum(o.total_price for o in paid_orders_list)
 
@@ -642,6 +655,8 @@ def merchant_orders(request, slug):
         'paid_orders_today': paid_orders_today,
         'daily_total_sales': daily_total_sales,
         'search_query': search_query,
+        'search_date': search_date,
+        'search_date_error': search_date_error,
     }
     return render(request, 'restaurants/merchant_orders.html', context)
 

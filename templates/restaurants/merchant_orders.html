@@ -181,9 +181,9 @@
                 </div>
 
                 <!-- ฟอร์มค้นหาพร้อม Tooltip และระบบล็อกตำแหน่งหน้าจอ -->
-                <form method="GET" class="flex items-center gap-2 w-full md:w-auto relative">
+                <form method="GET" class="flex flex-wrap items-center gap-2 w-full md:w-auto relative">
                     <div class="relative w-full md:w-64">
-                        <input type="text" name="q" value="{{ search_query }}" placeholder="ค้นหาเลขออร์เดอร์, โต๊ะ, วันที่..." class="border rounded-xl px-3 py-2 text-xs w-full focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm pr-8">
+                        <input type="text" name="q" value="{{ search_query }}" placeholder="เลขออร์เดอร์, โต๊ะ, ชื่อลูกค้า" aria-label="ค้นหาเลขออร์เดอร์ โต๊ะ หรือชื่อลูกค้า" class="border rounded-xl px-3 py-2 text-xs w-full focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm pr-8">
                         
                         <!-- ไอคอนเครื่องหมายคำถาม (Tooltip Trigger) -->
                         <div class="absolute right-2.5 top-1/2 -translate-y-1/2 group cursor-pointer">
@@ -195,23 +195,28 @@
                                 <ul class="space-y-1 text-gray-200 list-disc list-inside">
                                     <li><b>เลขออร์เดอร์:</b> พิมพ์ <span class="text-cyan-300">36</span> หรือ <span class="text-cyan-300">#36</span></li>
                                     <li><b>ชื่อโต๊ะ/โซน:</b> พิมพ์ <span class="text-cyan-300">A2</span> หรือ <span class="text-cyan-300">กระท่อม</span></li>
-                                    <li><b>วันที่ (ค.ศ.):</b> พิมพ์รูปแบบ <span class="text-cyan-300">YYYY-MM-DD</span> (เช่น <span class="text-amber-200">2026-10-11</span>)</li>
+                                    <li><b>วันที่:</b> เลือกวันที่จากช่องปฏิทิน</li>
                                 </ul>
                                 <div class="absolute right-2 top-full w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-slate-800"></div>
                             </div>
                         </div>
                     </div>
 
+                    <input type="date" name="date" value="{{ search_date }}" aria-label="กรองตามวันที่ชำระเงิน" class="border rounded-xl px-3 py-2 text-xs w-full sm:w-auto focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm">
+
                     <!-- เพิ่ม onclick="saveScrollPosition()" ที่ปุ่มค้นหา -->
-                    <button type="submit" onclick="saveScrollPosition()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition shadow-sm whitespace-nowrap">
+                    <button type="submit" onclick="saveScrollPosition()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition shadow-sm whitespace-nowrap flex-1 sm:flex-none">
                         🔍 ค้นหา
                     </button>
                     
-                    {% if search_query %}
+                    {% if search_query or search_date %}
                     <!-- เพิ่ม onclick="saveScrollPosition()" ที่ปุ่มรีเซ็ต -->
-                    <a href="{% url 'merchant_orders' restaurant.slug %}" onclick="saveScrollPosition()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-2 rounded-xl text-xs transition whitespace-nowrap">
+                    <a href="{% url 'merchant_orders' restaurant.slug %}" onclick="saveScrollPosition()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-2 rounded-xl text-xs transition whitespace-nowrap text-center">
                         รีเซ็ต
                     </a>
+                    {% endif %}
+                    {% if search_date_error %}
+                    <p role="alert" class="basis-full text-xs text-red-600">{{ search_date_error }}</p>
                     {% endif %}
                 </form>
 
@@ -259,7 +264,7 @@
                 {% if paid_orders_today.has_other_pages %}
                 <div class="flex justify-center items-center gap-2 mt-6 pt-4 border-t">
                     {% if paid_orders_today.has_previous %}
-                    <a href="?page={{ paid_orders_today.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" onclick="saveScrollPosition()" class="px-3 py-1.5 bg-white border rounded-lg text-xs font-medium hover:bg-gray-50">
+                    <a href="?page={{ paid_orders_today.previous_page_number }}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}{% if search_date %}&date={{ search_date|urlencode }}{% endif %}" onclick="saveScrollPosition()" class="px-3 py-1.5 bg-white border rounded-lg text-xs font-medium hover:bg-gray-50">
                         ◀ หน้าก่อนหน้า
                     </a>
                     {% endif %}
@@ -269,7 +274,7 @@
                     </span>
 
                     {% if paid_orders_today.has_next %}
-                    <a href="?page={{ paid_orders_today.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" onclick="saveScrollPosition()" class="px-3 py-1.5 bg-white border rounded-lg text-xs font-medium hover:bg-gray-50">
+                    <a href="?page={{ paid_orders_today.next_page_number }}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}{% if search_date %}&date={{ search_date|urlencode }}{% endif %}" onclick="saveScrollPosition()" class="px-3 py-1.5 bg-white border rounded-lg text-xs font-medium hover:bg-gray-50">
                         หน้าถัดไป ▶
                     </a>
                     {% endif %}
