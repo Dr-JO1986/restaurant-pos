@@ -15,6 +15,7 @@
                 <p class="text-xs opacity-80">{{ restaurant.name }}</p>
                 <h1 class="text-xl font-bold">👥 จัดการบัญชีพนักงาน</h1>
             </div>
+            <a href="{% url 'merchant_dashboard' restaurant.slug %}" class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition">← กลับหน้าแดชบอร์ด</a>
             <a href="{% url 'staff_order_screen' restaurant.slug %}" class="rounded-lg bg-white/15 px-3 py-2 text-xs">ไปหน้าคีย์ออร์เดอร์</a>
         </div>
     </header>

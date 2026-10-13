@@ -659,6 +659,12 @@ class OnlinePickupOrderTests(TestCase):
 
     def test_owner_can_create_staff_account_and_staff_login_is_pos_only(self):
         self.client.force_login(self.user)
+        response = self.client.get(reverse('staff_manage', args=[self.restaurant.slug]))
+        self.assertContains(
+            response,
+            f'href="{reverse("merchant_dashboard", args=[self.restaurant.slug])}"',
+        )
+
         response = self.client.post(
             reverse('staff_manage', args=[self.restaurant.slug]),
             {
