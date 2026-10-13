@@ -16,8 +16,8 @@
                 <h1 class="text-xl font-bold">👥 จัดการบัญชีพนักงาน</h1>
             </div>
             <div class="flex items-center gap-2">
-                 <a href="../" class="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 transition">← กลับหน้าแดชบอร์ด</a>
-                 <a href="{% url 'staff_order_session' restaurant.slug %}" class="rounded-lg bg-white/15 px-3 py-2 text-xs">ไปหน้าคีย์ออร์เดอร์</a>
+                 <a href="{% url 'merchant_dashboard' restaurant.slug %}" class="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 transition">← กลับหน้าแดชบอร์ด</a>
+                 <a href="{% url 'staff_order_screen' restaurant.slug %}" class="rounded-lg bg-white/15 px-3 py-2 text-xs">ไปหน้าคีย์ออร์เดอร์</a>
             </div>
         </div>
     </header>
