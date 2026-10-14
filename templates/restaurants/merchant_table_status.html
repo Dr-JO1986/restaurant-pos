@@ -45,6 +45,9 @@
                         <div>
                             <span class="font-bold text-gray-800">{{ item.menu_item.name }}</span> 
                             <span class="text-indigo-600 font-semibold">x {{ item.quantity }}</span> (฿{{ item.price }})
+                            {% if item.selected_options %}
+                            <span class="block mt-1 text-indigo-600">เพิ่ม: {% for option in item.selected_options %}{{ option.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</span>
+                            {% endif %}
                         </div>
                         
                         <!-- ฟอร์มเปลี่ยนสถานะรายเมนู (ล็อก disable ถ้าสถานะเป็น cancelled) -->

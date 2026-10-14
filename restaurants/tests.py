@@ -11,7 +11,10 @@ from django.urls import reverse
 from django.utils import timezone
 from PIL import Image
 
-from .models import Category, MenuItem, Order, OrderItem, Restaurant, RestaurantStaff, Table
+from .models import (
+    Category, MenuItem, OptionGroup, OptionItem, Order, OrderItem,
+    Restaurant, RestaurantStaff, Table,
+)
 
 
 class OnlinePickupOrderTests(TestCase):
@@ -86,6 +89,126 @@ class OnlinePickupOrderTests(TestCase):
             success_response,
             reverse('online_order_receipt', args=[self.restaurant.slug, order.public_token]),
         )
+
+    def test_online_order_adds_selected_option_price_and_saves_snapshot(self):
+        group = OptionGroup.objects.create(restaurant=self.restaurant, name='ไข่')
+        self.menu_item.option_groups.add(group)
+        option = OptionItem.objects.create(group=group, name='ไข่ดาว', price=Decimal('15.00'))
+        table_menu_response = self.client.get(
+            reverse('customer_storefront_table', args=[self.restaurant.slug, 'A1']),
+        )
+        online_menu_response = self.client.get(reverse('online_storefront', args=[self.restaurant.slug]))
+        self.assertContains(table_menu_response, 'data-option-price="15.00"')
+        self.assertContains(online_menu_response, 'data-option-price="15.00"')
+
+        response = self.client.post(
+            reverse('place_online_order', args=[self.restaurant.slug]),
+            self.valid_order_data(**{f'options_{self.menu_item.id}': str(option.id)}),
+        )
+
+        order = Order.objects.get(restaurant=self.restaurant)
+        order_item = OrderItem.objects.get(order=order)
+        self.assertRedirects(
+            response,
+            reverse('online_order_success', args=[self.restaurant.slug, order.public_token]),
+        )
+        self.assertEqual(order.total_price, Decimal('130.00'))
+        self.assertEqual(order_item.price, Decimal('65.00'))
+        self.assertEqual(
+            order_item.selected_options,
+            [{'id': option.id, 'name': 'ไข่ดาว', 'price': '15.00'}],
+        )
+        self.assertContains(self.client.get(response.url), 'ไข่ดาว')
+
+    def test_online_order_rejects_options_not_attached_to_menu(self):
+        group = OptionGroup.objects.create(restaurant=self.restaurant, name='ไข่')
+        option = OptionItem.objects.create(group=group, name='ไข่ดาว', price=Decimal('15.00'))
+
+        response = self.client.post(
+            reverse('place_online_order', args=[self.restaurant.slug]),
+            self.valid_order_data(**{f'options_{self.menu_item.id}': str(option.id)}),
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertContains(response, 'ตัวเลือกเสริมไม่ถูกต้อง', status_code=400)
+        self.assertFalse(Order.objects.exists())
+
+    def test_table_order_includes_addon_price_and_kitchen_snapshot(self):
+        group = OptionGroup.objects.create(restaurant=self.restaurant, name='ไข่')
+        self.menu_item.option_groups.add(group)
+        option = OptionItem.objects.create(group=group, name='ไข่ดาว', price=Decimal('15.00'))
+
+        response = self.client.post(
+            reverse('place_order_table', args=[self.restaurant.slug, 'A1']),
+            {
+                'customer_name': 'สมชาย',
+                'menu_item_id': [str(self.menu_item.id)],
+                'quantity': ['2'],
+                f'options_{self.menu_item.id}': [str(option.id)],
+            },
+        )
+
+        order = Order.objects.get(restaurant=self.restaurant)
+        order_item = order.items.get()
+        self.assertRedirects(
+            response,
+            reverse('customer_storefront_table', args=[self.restaurant.slug, 'A1']),
+        )
+        self.assertEqual(order.total_price, Decimal('130.00'))
+        self.assertEqual(order_item.selected_options[0]['name'], 'ไข่ดาว')
+        self.client.force_login(self.user)
+        kitchen_response = self.client.get(reverse('merchant_orders', args=[self.restaurant.slug]))
+        self.assertContains(kitchen_response, 'ไข่ดาว')
+
+    def test_staff_pos_order_includes_selected_addon(self):
+        group = OptionGroup.objects.create(restaurant=self.restaurant, name='ไข่')
+        self.menu_item.option_groups.add(group)
+        option = OptionItem.objects.create(group=group, name='ไข่ดาว', price=Decimal('15.00'))
+        self.client.force_login(self.user)
+        self.assertContains(
+            self.client.get(reverse('staff_order_screen', args=[self.restaurant.slug])),
+            'data-option-price="15.00"',
+        )
+
+        response = self.client.post(
+            reverse('staff_order_screen', args=[self.restaurant.slug]),
+            {
+                'sale_type': 'counter',
+                f'quantity_{self.menu_item.id}': '1',
+                f'options_{self.menu_item.id}': str(option.id),
+            },
+        )
+
+        order = Order.objects.get(restaurant=self.restaurant)
+        self.assertRedirects(
+            response,
+            f"{reverse('staff_order_screen', args=[self.restaurant.slug])}?order={order.id}",
+        )
+        self.assertEqual(order.total_price, Decimal('65.00'))
+        self.assertEqual(order.items.get().selected_options[0]['name'], 'ไข่ดาว')
+
+    def test_owner_can_create_option_group_and_items_from_dashboard(self):
+        self.client.force_login(self.user)
+        dashboard_url = reverse('merchant_dashboard', args=[self.restaurant.slug])
+
+        response = self.client.post(dashboard_url, {
+            'add_option_group': '1',
+            'name': 'ไข่และท็อปปิ้ง',
+            'menu_items': [str(self.menu_item.id)],
+        })
+        self.assertRedirects(response, dashboard_url)
+        group = OptionGroup.objects.get(restaurant=self.restaurant)
+        self.assertIn(self.menu_item, group.menu_items.all())
+        self.assertContains(self.client.get(dashboard_url), 'ไข่และท็อปปิ้ง')
+
+        response = self.client.post(dashboard_url, {
+            'add_option_item': '1',
+            'group': str(group.id),
+            'name': 'ไข่ดาว',
+            'price': '15.00',
+        })
+        self.assertRedirects(response, dashboard_url)
+        self.assertEqual(group.options.get().price, Decimal('15.00'))
 
     def test_order_requires_payment_slip_and_future_pickup_time(self):
         data = self.valid_order_data()

@@ -2,7 +2,7 @@ from django import forms
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import SetPasswordForm, UserCreationForm
 from django.utils.text import slugify
-from .models import MenuItem, Category, RESTAURANT_TYPES, Restaurant
+from .models import MenuItem, Category, OptionGroup, OptionItem, RESTAURANT_TYPES, Restaurant
 
 class CategoryForm(forms.ModelForm):
     class Meta:
@@ -15,7 +15,7 @@ class CategoryForm(forms.ModelForm):
 class MenuItemForm(forms.ModelForm):
     class Meta:
         model = MenuItem
-        fields = ['category', 'name', 'price', 'description', 'image', 'is_available']
+        fields = ['category', 'name', 'price', 'description', 'image', 'is_available', 'option_groups']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500', 'placeholder': 'ชื่อเมนู เช่น ข้าวผัดกุ้ง'}),
             'category': forms.Select(attrs={'class': 'w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500'}),
@@ -23,6 +23,44 @@ class MenuItemForm(forms.ModelForm):
             'description': forms.Textarea(attrs={'class': 'w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500', 'rows': 3, 'placeholder': 'รายละเอียดส่วนผสมหรือรสชาติ'}),
             'image': forms.ClearableFileInput(attrs={'class': 'w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100'}),
             'is_available': forms.CheckboxInput(attrs={'class': 'w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500'}),
+            'option_groups': forms.SelectMultiple(attrs={'class': 'w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500'}),
+        }
+
+
+class OptionGroupForm(forms.ModelForm):
+    menu_items = forms.ModelMultipleChoiceField(
+        queryset=MenuItem.objects.none(),
+        required=False,
+        widget=forms.SelectMultiple(attrs={'class': 'w-full px-4 py-2 border rounded-lg'}),
+        label='เมนูที่ใช้กลุ่มนี้',
+    )
+
+    class Meta:
+        model = OptionGroup
+        fields = ['name']
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'w-full px-4 py-2 border rounded-lg',
+                'placeholder': 'เช่น ไข่และท็อปปิ้ง',
+            }),
+        }
+
+
+class OptionItemForm(forms.ModelForm):
+    class Meta:
+        model = OptionItem
+        fields = ['group', 'name', 'price']
+        widgets = {
+            'group': forms.Select(attrs={'class': 'w-full px-4 py-2 border rounded-lg'}),
+            'name': forms.TextInput(attrs={
+                'class': 'w-full px-4 py-2 border rounded-lg',
+                'placeholder': 'เช่น ไข่ดาว',
+            }),
+            'price': forms.NumberInput(attrs={
+                'class': 'w-full px-4 py-2 border rounded-lg',
+                'step': '0.01',
+                'min': '0',
+            }),
         }
 
 

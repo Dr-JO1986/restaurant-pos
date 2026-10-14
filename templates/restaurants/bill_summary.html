@@ -46,7 +46,10 @@
                                 <!-- แสดงเฉพาะรายการที่สถานะไม่ใช่ 'cancelled' -->
                                 {% if item.status != 'cancelled' %}
                                 <tr class="hover:bg-gray-50">
-                                    <td class="py-2.5 px-2 font-bold text-gray-900">{{ item.menu_item.name }}</td>
+                                    <td class="py-2.5 px-2 font-bold text-gray-900">
+                                        {{ item.menu_item.name }}
+                                        {% if item.selected_options %}<span class="block text-[10px] font-normal text-indigo-600">เพิ่ม: {% for option in item.selected_options %}{{ option.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</span>{% endif %}
+                                    </td>
                                     <td class="py-2.5 px-2 text-center text-gray-600">{{ item.quantity }}</td>
                                     <td class="py-2.5 px-2 text-right text-gray-600">฿{{ item.price }}</td>
                                     <td class="py-2.5 px-2 text-right font-bold text-gray-900">

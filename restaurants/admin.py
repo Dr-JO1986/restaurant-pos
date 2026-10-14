@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Restaurant, Category, MenuItem
+from .models import Restaurant, Category, MenuItem, OptionGroup, OptionItem
 from .models import TransactionRecord
 from .models import ContactInquiry
 
@@ -23,6 +23,25 @@ class CategoryAdmin(admin.ModelAdmin):
 class MenuItemAdmin(admin.ModelAdmin):
     list_display = ('name', 'restaurant', 'category', 'price', 'is_available')
     list_filter = ('restaurant', 'category', 'is_available')
+    filter_horizontal = ('option_groups',)
+
+
+class OptionItemInline(admin.TabularInline):
+    model = OptionItem
+    extra = 1
+
+
+@admin.register(OptionGroup)
+class OptionGroupAdmin(admin.ModelAdmin):
+    list_display = ('name', 'restaurant')
+    list_filter = ('restaurant',)
+    inlines = [OptionItemInline]
+
+
+@admin.register(OptionItem)
+class OptionItemAdmin(admin.ModelAdmin):
+    list_display = ('name', 'group', 'price')
+    list_filter = ('group__restaurant', 'group')
 
 
 

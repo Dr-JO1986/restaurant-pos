@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator
 from django.utils import timezone
 from pathlib import Path
 from PIL import Image, UnidentifiedImageError
@@ -72,6 +73,12 @@ class Category(models.Model):
 class MenuItem(models.Model):
     restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE, related_name='menu_items', verbose_name="ร้านอาหาร")
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='items', verbose_name="หมวดหมู่")
+    option_groups = models.ManyToManyField(
+        'OptionGroup',
+        blank=True,
+        related_name='menu_items',
+        verbose_name="กลุ่มตัวเลือกเสริม",
+    )
     name = models.CharField(max_length=200, verbose_name="ชื่อเมนูอาหาร")
     price = models.DecimalField(max_digits=8, decimal_places=2, verbose_name="ราคา (บาท)")
     description = models.TextField(blank=True, null=True, verbose_name="คำอธิบายเมนู")
@@ -80,6 +87,40 @@ class MenuItem(models.Model):
 
     def __str__(self):
         return f"{self.name} - {self.price} บาท"
+
+
+class OptionGroup(models.Model):
+    restaurant = models.ForeignKey(
+        Restaurant,
+        on_delete=models.CASCADE,
+        related_name='option_groups',
+        verbose_name="ร้านอาหาร",
+    )
+    name = models.CharField(max_length=150, verbose_name="ชื่อกลุ่มตัวเลือก")
+
+    def __str__(self):
+        return f"{self.name} ({self.restaurant.name})"
+
+
+class OptionItem(models.Model):
+    group = models.ForeignKey(
+        OptionGroup,
+        on_delete=models.CASCADE,
+        related_name='options',
+        verbose_name="กลุ่มตัวเลือก",
+    )
+    name = models.CharField(max_length=150, verbose_name="ชื่อตัวเลือก")
+    price = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        default=0,
+        validators=[MinValueValidator(0)],
+        verbose_name="ราคาบวกเพิ่ม (บาท)",
+    )
+
+    def __str__(self):
+        return f"{self.name} (+{self.price} บาท)"
+
 
 class Order(models.Model):
     ORDER_TYPE_CHOICES = (
@@ -146,6 +187,7 @@ class OrderItem(models.Model):
     menu_item = models.ForeignKey(MenuItem, on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField(default=1)
     price = models.DecimalField(max_digits=10, decimal_places=2)
+    selected_options = models.JSONField(default=list, blank=True, verbose_name="ตัวเลือกเสริมที่เลือก")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending') # <--- เพิ่มสถานะแยกแต่ละเมนู
 
     def __str__(self):

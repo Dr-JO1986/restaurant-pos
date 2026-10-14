@@ -12,11 +12,12 @@ from django.utils.html import escape
 from django.utils.dateparse import parse_date, parse_datetime
 from pathlib import Path
 from .models import (
-    Restaurant, RestaurantStaff, MenuItem, Category, Order, OrderItem, Table, TransactionRecord,
+    Restaurant, RestaurantStaff, MenuItem, Category, OptionGroup, OptionItem, Order, OrderItem, Table, TransactionRecord,
     ContactInquiry, validate_payment_slip,
 )
 from .forms import (
-    MenuItemForm, CategoryForm, StaffAccountCreationForm, StaffPasswordResetForm,
+    MenuItemForm, CategoryForm, OptionGroupForm, OptionItemForm,
+    StaffAccountCreationForm, StaffPasswordResetForm,
     MerchantRegistrationForm,
 )
 from django.utils import timezone
@@ -40,6 +41,36 @@ def _can_place_staff_order(request, restaurant):
         user=request.user,
         is_active=True,
     ).exists()
+
+
+def _get_selected_options(request, menu_item):
+    option_ids = request.POST.getlist(f'options_{menu_item.id}')
+    if len(option_ids) != len(set(option_ids)) or any(not option_id.isdigit() for option_id in option_ids):
+        return [], 'ตัวเลือกเสริมไม่ถูกต้อง กรุณาเลือกใหม่'
+    if not option_ids:
+        return [], None
+
+    options = list(
+        OptionItem.objects.filter(
+            pk__in=option_ids,
+            group__restaurant=menu_item.restaurant,
+            group__in=menu_item.option_groups.all(),
+        ).select_related('group')
+    )
+    if len(options) != len(option_ids):
+        return [], 'ตัวเลือกเสริมไม่ถูกต้องหรือไม่พร้อมให้บริการ กรุณาเลือกใหม่'
+    return options, None
+
+
+def _option_snapshot(options):
+    return [
+        {'id': option.id, 'name': option.name, 'price': str(option.price)}
+        for option in options
+    ]
+
+
+def _option_total(options):
+    return sum((option.price for option in options), start=0)
 
 
 def landing_page(request):
@@ -138,6 +169,11 @@ def merchant_dashboard(request, slug):
 
     menu_form = MenuItemForm()
     menu_form.fields['category'].queryset = categories
+    menu_form.fields['option_groups'].queryset = restaurant.option_groups.all()
+    option_group_form = OptionGroupForm()
+    option_group_form.fields['menu_items'].queryset = menu_items
+    option_item_form = OptionItemForm()
+    option_item_form.fields['group'].queryset = restaurant.option_groups.all()
 
     if request.method == 'POST':
         if 'save_payment_details' in request.POST:
@@ -155,10 +191,13 @@ def merchant_dashboard(request, slug):
             return redirect('merchant_dashboard', slug=restaurant.slug)
         elif 'add_menu' in request.POST:
             menu_form = MenuItemForm(request.POST, request.FILES)
+            menu_form.fields['category'].queryset = categories
+            menu_form.fields['option_groups'].queryset = restaurant.option_groups.all()
             if menu_form.is_valid():
                 menu_item = menu_form.save(commit=False)
                 menu_item.restaurant = restaurant
                 menu_item.save()
+                menu_form.save_m2m()
                 return redirect('merchant_dashboard', slug=restaurant.slug)
         
         elif 'add_category' in request.POST:
@@ -166,12 +205,50 @@ def merchant_dashboard(request, slug):
             if cat_name and len(cat_name) <= 150:
                 Category.objects.create(restaurant=restaurant, name=cat_name)
                 return redirect('merchant_dashboard', slug=restaurant.slug)
+        elif 'add_option_group' in request.POST:
+            option_group_form = OptionGroupForm(request.POST)
+            option_group_form.fields['menu_items'].queryset = menu_items
+            if option_group_form.is_valid():
+                option_group = option_group_form.save(commit=False)
+                option_group.restaurant = restaurant
+                option_group.save()
+                option_group.menu_items.set(option_group_form.cleaned_data['menu_items'])
+                messages.success(request, f'สร้างกลุ่มตัวเลือก "{option_group.name}" แล้ว')
+                return redirect('merchant_dashboard', slug=restaurant.slug)
+        elif 'add_option_item' in request.POST:
+            option_item_form = OptionItemForm(request.POST)
+            option_item_form.fields['group'].queryset = restaurant.option_groups.all()
+            if option_item_form.is_valid():
+                option_item_form.save()
+                messages.success(request, 'เพิ่มตัวเลือกเสริมแล้ว')
+                return redirect('merchant_dashboard', slug=restaurant.slug)
+        elif 'delete_option_item' in request.POST:
+            option_item = get_object_or_404(
+                OptionItem,
+                pk=request.POST.get('delete_option_item'),
+                group__restaurant=restaurant,
+            )
+            option_item.delete()
+            messages.success(request, 'ลบตัวเลือกเสริมแล้ว')
+            return redirect('merchant_dashboard', slug=restaurant.slug)
+        elif 'delete_option_group' in request.POST:
+            option_group = get_object_or_404(
+                OptionGroup,
+                pk=request.POST.get('delete_option_group'),
+                restaurant=restaurant,
+            )
+            option_group.delete()
+            messages.success(request, 'ลบกลุ่มตัวเลือกแล้ว')
+            return redirect('merchant_dashboard', slug=restaurant.slug)
 
     context = {
         'restaurant': restaurant,
         'menu_items': menu_items,
         'categories': categories,
         'menu_form': menu_form,
+        'option_group_form': option_group_form,
+        'option_item_form': option_item_form,
+        'option_groups': restaurant.option_groups.prefetch_related('options', 'menu_items'),
     }
     return render(request, 'restaurants/dashboard.html', context)
 
@@ -186,6 +263,7 @@ def staff_order_screen(request, slug):
     menu_items = list(
         restaurant.menu_items.filter(is_available=True)
         .select_related('category')
+        .prefetch_related('option_groups__options')
         .order_by('category__name', 'name')
     )
     tables = restaurant.tables.all().order_by('name')
@@ -233,7 +311,11 @@ def staff_order_screen(request, slug):
                     error = 'จำนวนสินค้าต้องอยู่ระหว่าง 0 ถึง 99 ชิ้น'
                     break
                 if quantity:
-                    selected_items.append((menu_item, quantity))
+                    options, option_error = _get_selected_options(request, menu_item)
+                    if option_error:
+                        error = option_error
+                        break
+                    selected_items.append((menu_item, quantity, options))
 
             if not error and not selected_items:
                 error = 'กรุณาเลือกเมนูอย่างน้อย 1 รายการ'
@@ -251,15 +333,17 @@ def staff_order_screen(request, slug):
                     total_price=0,
                 )
                 total_price = 0
-                for menu_item, quantity in selected_items:
+                for menu_item, quantity, options in selected_items:
+                    unit_price = menu_item.price + _option_total(options)
                     OrderItem.objects.create(
                         order=order,
                         menu_item=menu_item,
                         quantity=quantity,
-                        price=menu_item.price,
+                        price=unit_price,
+                        selected_options=_option_snapshot(options),
                         status='pending',
                     )
-                    total_price += menu_item.price * quantity
+                    total_price += unit_price * quantity
                 if not table:
                     order.table_number = f'TAKEOUT-{order.id}'
                 order.total_price = total_price
@@ -270,6 +354,7 @@ def staff_order_screen(request, slug):
 
         for menu_item in menu_items:
             menu_item.order_quantity = request.POST.get(f'quantity_{menu_item.id}', '0')
+            menu_item.order_options = request.POST.getlist(f'options_{menu_item.id}')
         selected_sale_type = sale_type if sale_type in {'table', 'counter'} else ''
         selected_table_id = request.POST.get('table_id', '')
         return render(request, 'restaurants/staff_order_screen.html', {
@@ -371,12 +456,15 @@ def edit_menu_item(request, slug, pk):
     
     if request.method == 'POST':
         form = MenuItemForm(request.POST, request.FILES, instance=menu_item)
+        form.fields['category'].queryset = restaurant.categories.all()
+        form.fields['option_groups'].queryset = restaurant.option_groups.all()
         if form.is_valid():
             form.save()
             return redirect('merchant_dashboard', slug=restaurant.slug)
     else:
         form = MenuItemForm(instance=menu_item)
         form.fields['category'].queryset = restaurant.categories.all()
+        form.fields['option_groups'].queryset = restaurant.option_groups.all()
 
     context = {'restaurant': restaurant, 'form': form, 'menu_item': menu_item}
     return render(request, 'restaurants/edit_menu.html', context)
@@ -487,7 +575,9 @@ def delete_category(request, slug, pk):
 def customer_storefront(request, slug, table_number):
     restaurant = get_object_or_404(Restaurant, slug=slug, is_active=True)
     categories = restaurant.categories.all()
-    menu_items = restaurant.menu_items.filter(is_available=True)
+    menu_items = restaurant.menu_items.filter(is_available=True).prefetch_related(
+        'option_groups__options',
+    )
     
     category_id = request.GET.get('category')
     if category_id:
@@ -518,7 +608,9 @@ def online_storefront(request, slug):
         if selected_category_id
         else None
     )
-    menu_items = restaurant.menu_items.filter(is_available=True).select_related('category')
+    menu_items = restaurant.menu_items.filter(is_available=True).select_related(
+        'category',
+    ).prefetch_related('option_groups__options')
     if selected_category:
         menu_items = menu_items.filter(category=selected_category)
 
@@ -592,7 +684,11 @@ def place_online_order(request, slug):
                     error = 'จำนวนสินค้าต้องอยู่ระหว่าง 0 ถึง 99 ชิ้น'
                     break
                 if quantity:
-                    selected_items.append((menu_item, quantity))
+                    options, option_error = _get_selected_options(request, menu_item)
+                    if option_error:
+                        error = option_error
+                        break
+                    selected_items.append((menu_item, quantity, options))
 
             if not error and not selected_items:
                 error = 'กรุณาเลือกเมนูอย่างน้อย 1 รายการ'
@@ -600,6 +696,7 @@ def place_online_order(request, slug):
     if error:
         for menu_item in menu_items:
             menu_item.order_quantity = request.POST.get(f'quantity_{menu_item.id}', '0')
+            menu_item.order_options = request.POST.getlist(f'options_{menu_item.id}')
         displayed_menu_items = menu_items
         if selected_category:
             displayed_menu_items = [
@@ -637,15 +734,17 @@ def place_online_order(request, slug):
         )
         order.table_number = f'ONLINE-{order.id}'
         total_price = 0
-        for menu_item, quantity in selected_items:
+        for menu_item, quantity, options in selected_items:
+            unit_price = menu_item.price + _option_total(options)
             OrderItem.objects.create(
                 order=order,
                 menu_item=menu_item,
                 quantity=quantity,
-                price=menu_item.price,
+                price=unit_price,
+                selected_options=_option_snapshot(options),
                 status='pending',
             )
-            total_price += menu_item.price * quantity
+            total_price += unit_price * quantity
         order.total_price = total_price
         order.save(update_fields=['table_number', 'total_price'])
 
@@ -674,15 +773,24 @@ def online_order_receipt(request, slug, token):
         public_token=token,
         order_type='pickup',
     )
-    line_height = 34
+    line_height = 50
     height = 350 + order.items.count() * line_height
-    item_rows = ''.join(
-        f'<text x="40" y="{220 + index * line_height}" font-size="18">'
-        f'{escape(item.menu_item.name)} × {item.quantity}</text>'
-        f'<text x="560" y="{220 + index * line_height}" text-anchor="end" font-size="18">'
-        f'฿{item.price:,.2f}</text>'
-        for index, item in enumerate(order.items.all())
-    )
+    item_rows = []
+    for index, item in enumerate(order.items.all()):
+        row_y = 220 + index * line_height
+        item_rows.append(
+            f'<text x="40" y="{row_y}" font-size="18">'
+            f'{escape(item.menu_item.name)} × {item.quantity}</text>'
+            f'<text x="560" y="{row_y}" text-anchor="end" font-size="18">'
+            f'฿{item.price:,.2f}</text>'
+        )
+        if item.selected_options:
+            option_names = escape(', '.join(option['name'] for option in item.selected_options))
+            item_rows.append(
+                f'<text x="55" y="{row_y + 18}" font-size="13" fill="#4f46e5">'
+                f'เพิ่ม: {option_names}</text>'
+            )
+    item_rows = ''.join(item_rows)
     pickup_time = (
         timezone.localtime(order.pickup_at).strftime('%d/%m/%Y %H:%M')
         if order.pickup_at else '-'
@@ -793,46 +901,67 @@ def place_order(request, slug, table_number):
     restaurant = get_object_or_404(Restaurant, slug=slug)
     
     if request.method == 'POST':
-        customer_name = request.POST.get('customer_name', '')
+        customer_name = request.POST.get('customer_name', '').strip()
         menu_item_ids = request.POST.getlist('menu_item_id')
         quantities = request.POST.getlist('quantity')
-        
-        has_items = False
-        for q in quantities:
-            if int(q or 0) > 0:
-                has_items = True
-                break
-                
-        if not has_items:
+        if len(customer_name) > 100 or len(menu_item_ids) != len(quantities):
+            messages.error(request, 'ข้อมูลออร์เดอร์ไม่ถูกต้อง กรุณาตรวจสอบแล้วลองใหม่')
             return redirect('customer_storefront_table', slug=restaurant.slug, table_number=table_number)
 
-        order = Order.objects.create(
-            restaurant=restaurant,
-            table_number=table_number,
-            customer_name=customer_name,
-            status='pending',
-            is_paid=False,
-            total_price=0
-        )
-        
-        total_price = 0
-        for item_id, qty in zip(menu_item_ids, quantities):
-            qty = int(qty or 0)
-            if qty > 0:
-                menu_item = get_object_or_404(MenuItem, id=item_id, restaurant=restaurant)
-                item_total = menu_item.price * qty
-                total_price += item_total
-                
+        selected_items = []
+        for item_id, raw_quantity in zip(menu_item_ids, quantities):
+            try:
+                quantity = int(raw_quantity or 0)
+            except (TypeError, ValueError):
+                messages.error(request, 'จำนวนสินค้าไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง')
+                return redirect('customer_storefront_table', slug=restaurant.slug, table_number=table_number)
+            if quantity < 0 or quantity > 99:
+                messages.error(request, 'จำนวนสินค้าต้องอยู่ระหว่าง 0 ถึง 99 ชิ้น')
+                return redirect('customer_storefront_table', slug=restaurant.slug, table_number=table_number)
+            menu_item = MenuItem.objects.filter(
+                id=item_id,
+                restaurant=restaurant,
+                is_available=True,
+            ).first()
+            if menu_item is None:
+                messages.error(request, 'ไม่พบเมนูที่เลือกหรือเมนูนี้ไม่พร้อมให้บริการ')
+                return redirect('customer_storefront_table', slug=restaurant.slug, table_number=table_number)
+            if quantity:
+                options, option_error = _get_selected_options(request, menu_item)
+                if option_error:
+                    messages.error(request, option_error)
+                    return redirect('customer_storefront_table', slug=restaurant.slug, table_number=table_number)
+                selected_items.append((menu_item, quantity, options))
+
+        if not selected_items:
+            messages.error(request, 'กรุณาเลือกเมนูอย่างน้อย 1 รายการ')
+            return redirect('customer_storefront_table', slug=restaurant.slug, table_number=table_number)
+
+        with transaction.atomic():
+            order = Order.objects.create(
+                restaurant=restaurant,
+                table_number=table_number,
+                customer_name=customer_name,
+                status='pending',
+                is_paid=False,
+                total_price=0
+            )
+
+            total_price = 0
+            for menu_item, quantity, options in selected_items:
+                unit_price = menu_item.price + _option_total(options)
                 OrderItem.objects.create(
                     order=order,
                     menu_item=menu_item,
-                    quantity=qty,
-                    price=menu_item.price,
+                    quantity=quantity,
+                    price=unit_price,
+                    selected_options=_option_snapshot(options),
                     status='pending'
                 )
-        
-        order.total_price = total_price
-        order.save()
+                total_price += unit_price * quantity
+
+            order.total_price = total_price
+            order.save(update_fields=['total_price'])
         
         return redirect('customer_storefront_table', slug=restaurant.slug, table_number=table_number)
         

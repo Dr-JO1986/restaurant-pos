@@ -79,7 +79,10 @@
                         {% for item in order.items.all %}
                         {% if item.status != 'cancelled' %}
                         <tr>
-                            <td class="py-2.5 font-medium text-gray-800">{{ item.menu_item.name }}</td>
+                            <td class="py-2.5 font-medium text-gray-800">
+                                {{ item.menu_item.name }}
+                                {% if item.selected_options %}<span class="block text-xs text-gray-500">เพิ่ม: {% for option in item.selected_options %}{{ option.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</span>{% endif %}
+                            </td>
                             <td class="py-2.5 text-center text-gray-600">{{ item.quantity }}</td>
                             <td class="py-2.5 text-right text-gray-600">฿{{ item.price }}</td>
                             <td class="py-2.5 text-right font-bold text-gray-900">฿{{ item.line_total|floatformat:2 }}</td>

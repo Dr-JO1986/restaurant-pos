@@ -65,6 +65,17 @@
                         <h3 class="font-bold text-gray-800 text-sm mt-1">{{ item.name }}</h3>
                         {% if item.description %}<p class="text-xs text-gray-500 mt-1">{{ item.description }}</p>{% endif %}
                         <p class="text-indigo-600 font-bold text-sm mt-1">฿{{ item.price }}</p>
+                        {% for group in item.option_groups.all %}
+                        <fieldset class="mt-2 border-t pt-2">
+                            <legend class="text-xs font-semibold text-gray-700">{{ group.name }}</legend>
+                            {% for option in group.options.all %}
+                            <label class="flex items-center gap-2 text-xs text-gray-600 mt-1">
+                                <input type="checkbox" name="options_{{ item.id }}" value="{{ option.id }}" data-option-price="{{ option.price }}" {% if item.order_options and option.id|stringformat:'s' in item.order_options %}checked{% endif %} class="option-input rounded text-indigo-600">
+                                <span>{{ option.name }} {% if option.price > 0 %}(+฿{{ option.price }}){% endif %}</span>
+                            </label>
+                            {% endfor %}
+                        </fieldset>
+                        {% endfor %}
                         <div class="flex items-center gap-3 mt-3">
                             <button type="button" aria-label="ลด {{ item.name }}" onclick="changeQuantity(this, -1)" class="w-8 h-8 bg-gray-100 hover:bg-gray-200 rounded-lg font-bold">−</button>
                             <input type="number" name="quantity_{{ item.id }}" value="{{ item.order_quantity|default:'0' }}" min="0" max="99" readonly class="w-10 text-center font-bold border-0 bg-transparent">
@@ -143,7 +154,12 @@
                 const quantity = Number(input.value);
                 const itemId = input.name.substring('quantity_'.length);
                 quantityTotal += quantity;
-                total += (prices[itemId] || 0) * quantity;
+                let unitPrice = prices[itemId] || 0;
+                const card = input.closest('article');
+                card.querySelectorAll('.option-input:checked').forEach(function (option) {
+                    unitPrice += Number(option.dataset.optionPrice);
+                });
+                total += unitPrice * quantity;
             });
             const totalPrice = document.getElementById('totalPrice');
             const totalQuantity = document.getElementById('totalQuantity');
@@ -155,6 +171,9 @@
 
         const orderForm = document.getElementById('onlineOrderForm');
         if (orderForm) {
+            orderForm.querySelectorAll('.option-input').forEach(function (input) {
+                input.addEventListener('change', updateCart);
+            });
             orderForm.addEventListener('submit', function (event) {
                 const hasItems = Array.from(document.querySelectorAll('input[name^="quantity_"]'))
                     .some(function (input) { return Number(input.value) > 0; });

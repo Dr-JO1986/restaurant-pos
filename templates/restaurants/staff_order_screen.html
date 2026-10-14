@@ -97,6 +97,17 @@
                             <h3 class="break-words text-sm font-bold">{{ item.name }}</h3>
                             {% if item.description %}<p class="mt-1 text-xs text-slate-500">{{ item.description }}</p>{% endif %}
                             <p class="mt-1 text-sm font-bold text-indigo-600">฿{{ item.price }}</p>
+                            {% for group in item.option_groups.all %}
+                            <fieldset class="mt-2 border-t pt-2">
+                                <legend class="text-xs font-semibold text-slate-700">{{ group.name }}</legend>
+                                {% for option in group.options.all %}
+                                <label class="mt-1 flex items-center gap-2 text-xs text-slate-600">
+                                    <input type="checkbox" name="options_{{ item.id }}" value="{{ option.id }}" data-option-price="{{ option.price }}" {% if item.order_options and option.id|stringformat:'s' in item.order_options %}checked{% endif %} class="option-input rounded">
+                                    <span>{{ option.name }} {% if option.price > 0 %}(+฿{{ option.price }}){% endif %}</span>
+                                </label>
+                                {% endfor %}
+                            </fieldset>
+                            {% endfor %}
                             <div class="mt-2 flex items-center gap-2">
                                 <button type="button" aria-label="ลด {{ item.name }}" onclick="changeQuantity('{{ item.id }}', -1)" class="h-9 w-9 rounded-lg bg-slate-100 font-bold">−</button>
                                 <input id="quantity-{{ item.id }}" name="quantity_{{ item.id }}" type="number" min="0" max="99" value="{{ item.order_quantity|default:'0' }}" inputmode="numeric" class="w-14 rounded-lg border text-center font-bold">
@@ -142,7 +153,12 @@
             Object.keys(prices).forEach(function (itemId) {
                 const quantity = Number(document.getElementById('quantity-' + itemId).value) || 0;
                 quantityTotal += quantity;
-                priceTotal += quantity * prices[itemId];
+                let unitPrice = prices[itemId];
+                const card = document.getElementById('quantity-' + itemId).closest('article');
+                card.querySelectorAll('.option-input:checked').forEach(function (option) {
+                    unitPrice += Number(option.dataset.optionPrice);
+                });
+                priceTotal += quantity * unitPrice;
             });
             document.getElementById('totalQuantity').textContent = quantityTotal;
             document.getElementById('totalPrice').textContent = priceTotal.toFixed(2);
@@ -159,6 +175,9 @@
 
         document.querySelectorAll('input[name^="quantity_"]').forEach(function (input) {
             input.addEventListener('input', updateTotal);
+        });
+        document.querySelectorAll('.option-input').forEach(function (input) {
+            input.addEventListener('change', updateTotal);
         });
         updateSaleType();
         updateTotal();

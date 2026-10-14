@@ -34,7 +34,7 @@
             <ul class="border-t mt-3 pt-3 space-y-2">
                 {% for item in order.items.all %}
                 <li class="flex justify-between gap-3">
-                    <span>{{ item.menu_item.name }} × {{ item.quantity }}</span>
+                    <span>{{ item.menu_item.name }} × {{ item.quantity }}{% if item.selected_options %}<span class="block text-xs text-indigo-600">เพิ่ม: {% for option in item.selected_options %}{{ option.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</span>{% endif %}</span>
                     <span>฿{{ item.price }}</span>
                 </li>
                 {% endfor %}

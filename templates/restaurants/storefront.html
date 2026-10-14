@@ -77,6 +77,7 @@
                                 <div class="min-w-0">
                                     <p class="font-bold text-gray-800 text-sm break-words">{{ item.menu_item.name }}</p>
                                     <p class="text-indigo-600 font-semibold mt-1">จำนวน: {{ item.quantity }} <span class="text-gray-400 font-normal">·</span> ฿{{ item.price }}</p>
+                                    {% if item.selected_options %}<p class="text-xs text-indigo-600 mt-1">เพิ่ม: {% for option in item.selected_options %}{{ option.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>{% endif %}
                                 </div>
                                 <div class="shrink-0">
                                     <span id="status-badge-{{ item.id }}" class="inline-flex px-2.5 py-1 rounded-full text-[10px] font-semibold
@@ -177,6 +178,17 @@
                         <p class="text-indigo-600 font-bold text-sm mt-0.5">฿{{ item.price }}</p>
                         
                         <input type="hidden" name="menu_item_id" value="{{ item.id }}">
+                        {% for group in item.option_groups.all %}
+                        <fieldset class="mt-2 border-t pt-2">
+                            <legend class="text-xs font-semibold text-gray-700">{{ group.name }}</legend>
+                            {% for option in group.options.all %}
+                            <label class="flex items-center gap-2 text-xs text-gray-600 mt-1">
+                                <input type="checkbox" name="options_{{ item.id }}" value="{{ option.id }}" data-option-price="{{ option.price }}" class="option-input rounded text-indigo-600">
+                                <span>{{ option.name }} {% if option.price > 0 %}(+฿{{ option.price }}){% endif %}</span>
+                            </label>
+                            {% endfor %}
+                        </fieldset>
+                        {% endfor %}
                         
                         <!-- Quantity Controller (ใส่ฟังก์ชันบวก-ลบกลับมาครบถ้วน) -->
                         <div class="flex items-center gap-3 mt-3">
@@ -239,8 +251,12 @@
                         if (qty > 0) {
                             const card = input.closest('.flex-1');
                             const idInput = card.querySelector('input[name="menu_item_id"]');
-                            if (idInput && itemPrices[idInput.value]) {
-                                total += itemPrices[idInput.value] * qty;
+                            if (idInput && Object.prototype.hasOwnProperty.call(itemPrices, idInput.value)) {
+                                let unitPrice = itemPrices[idInput.value];
+                                card.querySelectorAll('.option-input:checked').forEach(option => {
+                                    unitPrice += Number(option.dataset.optionPrice);
+                                });
+                                total += unitPrice * qty;
                                 totalQty += qty;
                             }
                         }
@@ -255,6 +271,10 @@
                         cartBar.classList.add('translate-y-full');
                     }
                 }
+
+                document.querySelectorAll('.option-input').forEach(input => {
+                    input.addEventListener('change', updateCart);
+                });
 
                 // ตัวแปรควบคุมการรีเฟรชอัตโนมัติ
                 let isEditing = false;
