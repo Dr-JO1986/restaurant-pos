@@ -2,7 +2,10 @@ from django import forms
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import SetPasswordForm, UserCreationForm
 from django.utils.text import slugify
-from .models import MenuItem, Category, OptionGroup, OptionItem, RESTAURANT_TYPES, Restaurant
+from .models import (
+    MenuItem, Category, OptionGroup, OptionItem, RESTAURANT_TYPES,
+    Restaurant, RestaurantStaff,
+)
 
 class CategoryForm(forms.ModelForm):
     class Meta:
@@ -65,6 +68,19 @@ class OptionItemForm(forms.ModelForm):
 
 
 class StaffAccountCreationForm(UserCreationForm):
+    role = forms.ChoiceField(
+        choices=RestaurantStaff.ROLE_CHOICES,
+        required=False,
+        initial='order',
+        label='หน้าที่',
+        widget=forms.Select(attrs={
+            'class': 'w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500',
+        }),
+    )
+
+    def clean_role(self):
+        return self.cleaned_data['role'] or 'order'
+
     email = forms.EmailField(
         required=False,
         widget=forms.EmailInput(attrs={

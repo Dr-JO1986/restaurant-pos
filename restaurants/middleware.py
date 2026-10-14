@@ -57,7 +57,6 @@ class StaffAccessMiddleware:
         'kitchen_live_updates',
         'kitchen_update_order_status',
         'kitchen_update_item_status',
-        'resolve_waiter_call',
         'call_waiter',
     }
 
@@ -92,7 +91,31 @@ class StaffAccessMiddleware:
                     and view_name == 'table_bill_summary'
                     and match.kwargs.get('slug') == staff_membership.restaurant.slug
                 )
-                if view_name not in self.allowed_staff_views and not is_own_restaurant_bill:
+                is_own_restaurant_request = (
+                    match is not None
+                    and match.kwargs.get('slug') == staff_membership.restaurant.slug
+                )
+                kitchen_views = {
+                    'kitchen_display',
+                    'kitchen_live_updates',
+                    'kitchen_update_order_status',
+                    'kitchen_update_item_status',
+                }
+                if staff_membership.role == 'kitchen':
+                    allowed = (
+                        view_name in kitchen_views
+                        and is_own_restaurant_request
+                    ) or view_name in {
+                        'merchant_login',
+                        'merchant_logout',
+                        'restaurant_pending',
+                    }
+                else:
+                    allowed = (
+                        view_name not in kitchen_views
+                        and (view_name in self.allowed_staff_views or is_own_restaurant_bill)
+                    )
+                if not staff_membership.is_active or not allowed:
                     return HttpResponseForbidden()
 
         return self.get_response(request)

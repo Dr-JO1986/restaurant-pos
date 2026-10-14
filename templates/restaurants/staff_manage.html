@@ -29,7 +29,7 @@
 
         <section class="h-fit rounded-2xl border bg-white p-5 shadow-sm">
             <h2 class="font-bold">สร้างบัญชีพนักงาน</h2>
-            <p class="mt-1 text-xs text-slate-500">บัญชีนี้ใช้คีย์ออร์เดอร์ได้เท่านั้น ไม่มีสิทธิ์เข้าหน้าจัดการร้านหรือรายงาน</p>
+            <p class="mt-1 text-xs text-slate-500">กำหนดชื่อผู้ใช้ รหัสผ่าน และหน้าที่ให้พนักงานแต่ละคน พ่อครัวจะเข้าได้เฉพาะหน้าจอครัว ส่วนพนักงานรับออร์เดอร์ใช้หน้าคีย์ออร์เดอร์ตามปกติ</p>
             <form method="post" class="mt-4 space-y-3">
                 {% csrf_token %}
                 {% for field in form %}
@@ -53,6 +53,7 @@
                     <div class="min-w-0">
                         <p class="truncate text-sm font-semibold">{{ staff.user.get_username }}</p>
                         {% if staff.user.email %}<p class="truncate text-xs text-slate-500">{{ staff.user.email }}</p>{% endif %}
+                        <p class="mt-1 text-xs font-medium text-indigo-700">{{ staff.get_role_display }}</p>
                         <span class="mt-1 inline-flex rounded-full px-2 py-0.5 text-[10px] {% if staff.is_active %}bg-emerald-100 text-emerald-700{% else %}bg-slate-100 text-slate-600{% endif %}">
                             {% if staff.is_active %}เปิดใช้งาน{% else %}ปิดใช้งาน{% endif %}
                         </span>

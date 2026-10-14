@@ -1,0 +1,33 @@
+{% if waiter_calls %}
+    <section class="rounded-2xl border-2 border-orange-300 bg-orange-50 p-4 shadow-sm">
+        <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div>
+                <h2 class="text-lg font-bold text-orange-950">🔔 ลูกค้าเรียกพนักงาน</h2>
+                <p class="text-xs text-orange-800">รายการจะอัปเดตอัตโนมัติทุก 3 วินาที</p>
+            </div>
+            <span class="rounded-full bg-orange-600 px-3 py-1 text-sm font-bold text-white">{{ waiter_calls|length }} รายการ</span>
+        </div>
+        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {% for call in waiter_calls %}
+                <article data-call-id="{{ call.id }}" class="flex items-center justify-between gap-3 rounded-xl border border-orange-200 bg-white p-4">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wider text-orange-700">โต๊ะ</p>
+                        <p class="text-2xl font-bold text-slate-900">{{ call.table_number }}</p>
+                        <p class="text-xs text-slate-500">เรียกเมื่อ {{ call.created_at|date:"H:i น." }}</p>
+                    </div>
+                    <form method="post" action="{% url 'resolve_waiter_call' restaurant.slug call.id %}">
+                        {% csrf_token %}
+                        <button type="submit" class="min-h-12 rounded-xl bg-orange-600 px-4 py-2 text-sm font-bold text-white hover:bg-orange-700">
+                            รับทราบ
+                        </button>
+                    </form>
+                </article>
+            {% endfor %}
+        </div>
+    </section>
+{% else %}
+    <section class="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm">
+        <span class="font-semibold text-slate-700">🔔 ไม่มีสายเรียกพนักงานที่รออยู่</span>
+        <span class="text-xs text-slate-400">ตรวจสอบทุก 3 วินาที</span>
+    </section>
+{% endif %}

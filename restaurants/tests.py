@@ -807,6 +807,7 @@ class OnlinePickupOrderTests(TestCase):
         staff_account = get_user_model().objects.get(username='counter-staff')
         staff_membership = RestaurantStaff.objects.get(user=staff_account)
         self.assertEqual(staff_membership.restaurant, self.restaurant)
+        self.assertEqual(staff_membership.role, 'order')
         self.assertFalse(staff_account.is_staff)
         self.assertFalse(staff_account.is_superuser)
 
@@ -1097,9 +1098,9 @@ class KitchenDisplayAndWaiterCallTests(TestCase):
         self.client.post(call_url)
         self.assertEqual(WaiterCall.objects.filter(restaurant=self.restaurant).count(), 1)
 
-    def test_kitchen_staff_can_poll_and_acknowledge_calls_and_update_items(self):
+    def test_kitchen_staff_can_poll_and_owner_acknowledges_calls(self):
         staff_user = get_user_model().objects.create_user(username='kitchen-staff', password='test-pass')
-        RestaurantStaff.objects.create(restaurant=self.restaurant, user=staff_user)
+        RestaurantStaff.objects.create(restaurant=self.restaurant, user=staff_user, role='kitchen')
         order, item = self.create_order()
         waiter_call = WaiterCall.objects.create(restaurant=self.restaurant, table_number='A1')
         self.client.force_login(staff_user)
@@ -1112,7 +1113,11 @@ class KitchenDisplayAndWaiterCallTests(TestCase):
         updates = self.client.get(reverse('kitchen_live_updates', args=[self.restaurant.slug]))
         self.assertContains(updates, f'data-order-id="{order.id}"')
         self.assertContains(updates, 'เพิ่มไข่ดาว')
-        self.assertContains(updates, f'data-call-id="{waiter_call.id}"')
+        self.assertNotContains(updates, 'เรียกพนักงาน')
+        self.assertEqual(
+            self.client.get(reverse('owner_waiter_calls_live', args=[self.restaurant.slug])).status_code,
+            403,
+        )
 
         response = self.client.post(
             reverse('kitchen_update_item_status', args=[self.restaurant.slug, item.id]),
@@ -1124,10 +1129,15 @@ class KitchenDisplayAndWaiterCallTests(TestCase):
         self.assertEqual(item.status, 'cooking')
         self.assertEqual(order.status, 'cooking')
 
-        self.client.post(
+        self.client.force_login(self.owner)
+        owner_calls = self.client.get(reverse('owner_waiter_calls_live', args=[self.restaurant.slug]))
+        self.assertContains(owner_calls, 'โต๊ะ')
+        self.assertContains(owner_calls, 'A1')
+        response = self.client.post(
             reverse('resolve_waiter_call', args=[self.restaurant.slug, waiter_call.id]),
         )
-        waiter_call.refresh_from_db()
+        self.assertRedirects(response, reverse('merchant_dashboard', args=[self.restaurant.slug]))
+        waiter_call = WaiterCall.objects.get(restaurant=self.restaurant, table_number='A1')
         self.assertTrue(waiter_call.is_resolved)
         self.assertIsNotNone(waiter_call.resolved_at)
 
@@ -1142,13 +1152,80 @@ class KitchenDisplayAndWaiterCallTests(TestCase):
         unrelated_user = get_user_model().objects.create_user(username='unrelated', password='test-pass')
         self.client.force_login(unrelated_user)
         forbidden_response = self.client.get(display_url)
-        self.assertEqual(forbidden_response.status_code, 302)
-        self.assertEqual(self.client.get(reverse('kitchen_live_updates', args=[self.restaurant.slug])).status_code, 302)
+        self.assertEqual(forbidden_response.status_code, 403)
+        self.assertEqual(self.client.get(reverse('kitchen_live_updates', args=[self.restaurant.slug])).status_code, 403)
 
         self.client.force_login(self.owner)
+        self.assertEqual(self.client.get(display_url).status_code, 403)
+        self.assertEqual(self.client.get(update_url).status_code, 403)
+        self.client.logout()
+        kitchen_user = get_user_model().objects.create_user(username='only-kitchen', password='test-pass')
+        RestaurantStaff.objects.create(
+            restaurant=self.restaurant,
+            user=kitchen_user,
+            role='kitchen',
+        )
+        self.client.force_login(kitchen_user)
         self.assertEqual(self.client.get(update_url).status_code, 405)
         self.client.post(update_url, {'status': 'cooking'})
         order.refresh_from_db()
         item.refresh_from_db()
         self.assertEqual(order.status, 'cooking')
         self.assertEqual(item.status, 'cooking')
+
+    def test_order_staff_and_kitchen_staff_are_limited_to_their_own_screens(self):
+        order_staff = get_user_model().objects.create_user(username='order-staff', password='test-pass')
+        RestaurantStaff.objects.create(restaurant=self.restaurant, user=order_staff, role='order')
+        self.client.force_login(order_staff)
+        self.assertEqual(self.client.get(reverse('staff_order_screen', args=[self.restaurant.slug])).status_code, 200)
+        self.assertEqual(self.client.get(reverse('kitchen_display', args=[self.restaurant.slug])).status_code, 403)
+
+        kitchen_user = get_user_model().objects.create_user(username='restricted-kitchen', password='test-pass')
+        RestaurantStaff.objects.create(restaurant=self.restaurant, user=kitchen_user, role='kitchen')
+        self.client.force_login(kitchen_user)
+        self.assertEqual(self.client.get(reverse('kitchen_display', args=[self.restaurant.slug])).status_code, 200)
+        self.assertEqual(self.client.get(reverse('staff_order_screen', args=[self.restaurant.slug])).status_code, 403)
+
+    def test_kitchen_login_redirects_to_kitchen_screen(self):
+        kitchen_user = get_user_model().objects.create_user(username='login-kitchen', password='test-pass')
+        RestaurantStaff.objects.create(restaurant=self.restaurant, user=kitchen_user, role='kitchen')
+
+        response = self.client.post(
+            reverse('merchant_login'),
+            {'username': 'login-kitchen', 'password': 'test-pass'},
+        )
+
+        self.assertRedirects(response, reverse('kitchen_display', args=[self.restaurant.slug]))
+
+    def test_owner_can_create_kitchen_login_and_dashboard_shows_waiter_calls(self):
+        Table.objects.create(restaurant=self.restaurant, name='A1')
+        waiter_call = WaiterCall.objects.create(restaurant=self.restaurant, table_number='A1')
+        self.client.force_login(self.owner)
+
+        manage_url = reverse('staff_manage', args=[self.restaurant.slug])
+        self.assertContains(self.client.get(manage_url), 'พ่อครัว / หน้าจอครัว')
+        response = self.client.post(manage_url, {
+            'username': 'owner-created-cook',
+            'email': 'cook@example.com',
+            'password1': 'KitchenPass!829z',
+            'password2': 'KitchenPass!829z',
+            'role': 'kitchen',
+        })
+
+        self.assertRedirects(response, manage_url)
+        cook = get_user_model().objects.get(username='owner-created-cook')
+        membership = RestaurantStaff.objects.get(user=cook)
+        self.assertEqual(membership.role, 'kitchen')
+        self.assertTrue(cook.check_password('KitchenPass!829z'))
+
+        dashboard_url = reverse('merchant_dashboard', args=[self.restaurant.slug])
+        self.assertContains(
+            self.client.get(dashboard_url),
+            reverse('owner_waiter_calls_live', args=[self.restaurant.slug]),
+        )
+        live_calls = self.client.get(reverse('owner_waiter_calls_live', args=[self.restaurant.slug]))
+        self.assertContains(live_calls, f'data-call-id="{waiter_call.id}"')
+
+        self.client.force_login(cook)
+        self.assertEqual(self.client.get(reverse('merchant_dashboard', args=[self.restaurant.slug])).status_code, 403)
+        self.assertEqual(self.client.get(reverse('merchant_orders', args=[self.restaurant.slug])).status_code, 403)

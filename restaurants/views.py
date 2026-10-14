@@ -41,18 +41,18 @@ def _can_place_staff_order(request, restaurant):
         restaurant=restaurant,
         user=request.user,
         is_active=True,
+        role='order',
     ).exists()
 
 
 def _can_access_kitchen(request, restaurant):
     if request.user.is_superuser:
         return True
-    if restaurant.user == request.user:
-        return True
     return RestaurantStaff.objects.filter(
         restaurant=restaurant,
         user=request.user,
         is_active=True,
+        role='kitchen',
     ).exists()
 
 
@@ -63,8 +63,7 @@ def kitchen_staff_required(view_func):
         slug = kwargs.get('slug')
         restaurant = get_object_or_404(Restaurant, slug=slug) if slug else None
         if restaurant is None or not _can_access_kitchen(request, restaurant):
-            messages.error(request, 'บัญชีของคุณไม่มีสิทธิ์เข้าหน้าจอครัว กรุณาเข้าสู่ระบบด้วยบัญชีพนักงานที่ได้รับอนุญาต')
-            return redirect('merchant_login')
+            return HttpResponseForbidden('บัญชีนี้ไม่มีสิทธิ์เข้าหน้าจอครัว')
         return view_func(request, *args, **kwargs)
     return _wrapped
 
@@ -158,6 +157,8 @@ def restaurant_pending(request):
             return redirect('merchant_login')
         restaurant = staff_membership.restaurant
         if restaurant.is_active and staff_membership.is_active:
+            if staff_membership.role == 'kitchen':
+                return redirect('kitchen_display', slug=restaurant.slug)
             return redirect('staff_order_screen', slug=restaurant.slug)
 
     return render(request, 'restaurants/restaurant_pending.html', {'restaurant': restaurant})
@@ -422,8 +423,13 @@ def staff_manage(request, slug):
         if form.is_valid():
             with transaction.atomic():
                 user = form.save()
-                RestaurantStaff.objects.create(restaurant=restaurant, user=user)
-            messages.success(request, f'สร้างบัญชีพนักงาน "{user.get_username()}" แล้ว')
+                RestaurantStaff.objects.create(
+                    restaurant=restaurant,
+                    user=user,
+                    role=form.cleaned_data['role'],
+                )
+            role_label = dict(RestaurantStaff.ROLE_CHOICES)[form.cleaned_data['role']]
+            messages.success(request, f'สร้างบัญชี{role_label} "{user.get_username()}" แล้ว')
             return redirect('staff_manage', slug=restaurant.slug)
 
     return render(request, 'restaurants/staff_manage.html', {
@@ -1048,7 +1054,9 @@ def _kitchen_display_context(restaurant):
         .prefetch_related(
             Prefetch(
                 'items',
-                queryset=OrderItem.objects.select_related('menu_item').order_by('id'),
+                queryset=OrderItem.objects.filter(
+                    status__in=['pending', 'cooking'],
+                ).select_related('menu_item').order_by('id'),
             ),
         )
         .distinct()
@@ -1061,7 +1069,6 @@ def _kitchen_display_context(restaurant):
     return {
         'restaurant': restaurant,
         'orders': orders,
-        'waiter_calls': restaurant.waiter_calls.filter(is_resolved=False),
     }
 
 
@@ -1130,10 +1137,25 @@ def kitchen_update_item_status(request, slug, item_id):
     return redirect('kitchen_display', slug=restaurant.slug)
 
 
-@kitchen_staff_required
+@login_required(login_url='/login/')
+def owner_waiter_calls_live(request, slug):
+    restaurant = get_object_or_404(Restaurant, slug=slug)
+    if not _can_manage_restaurant(request, restaurant):
+        return HttpResponseForbidden()
+    response = render(request, 'restaurants/waiter_calls_dashboard.html', {
+        'restaurant': restaurant,
+        'waiter_calls': restaurant.waiter_calls.filter(is_resolved=False),
+    })
+    response['Cache-Control'] = 'no-store'
+    return response
+
+
+@login_required(login_url='/login/')
 @require_POST
 def resolve_waiter_call(request, slug, call_id):
     restaurant = get_object_or_404(Restaurant, slug=slug)
+    if not _can_manage_restaurant(request, restaurant):
+        return HttpResponseForbidden()
     waiter_call = get_object_or_404(
         WaiterCall,
         id=call_id,
@@ -1143,7 +1165,7 @@ def resolve_waiter_call(request, slug, call_id):
     waiter_call.is_resolved = True
     waiter_call.resolved_at = timezone.now()
     waiter_call.save(update_fields=['is_resolved', 'resolved_at'])
-    return redirect('kitchen_display', slug=restaurant.slug)
+    return redirect('merchant_dashboard', slug=restaurant.slug)
 
 
 @login_required(login_url='/login/')
@@ -1238,9 +1260,8 @@ def update_order_status(request, slug, order_id):
     if order.order_type == 'pickup' and restaurant.user != request.user and not request.user.is_superuser:
         return HttpResponseForbidden()
 
-    if not _can_access_kitchen(request, restaurant):
-        messages.error(request, 'บัญชีของคุณไม่มีสิทธิ์เปลี่ยนสถานะแอออร์เดอร์')
-        return redirect('merchant_login')
+    if not _can_manage_restaurant(request, restaurant) and not _can_access_kitchen(request, restaurant):
+        return HttpResponseForbidden()
 
     if request.method == 'POST':
         new_status = request.POST.get('status')
@@ -1399,9 +1420,8 @@ def merchant_table_receipt(request, slug, table_number):
 @login_required(login_url='/login/')
 def update_order_item_status(request, slug, item_id):
     restaurant = get_object_or_404(Restaurant, slug=slug)
-    if not _can_access_kitchen(request, restaurant):
-        messages.error(request, 'บัญชีของคุณไม่มีสิทธิ์เปลี่ยนสถานะรายการอาหาร')
-        return redirect('merchant_login')
+    if not _can_manage_restaurant(request, restaurant) and not _can_access_kitchen(request, restaurant):
+        return HttpResponseForbidden()
 
     item = get_object_or_404(OrderItem, id=item_id, order__restaurant=restaurant)
 

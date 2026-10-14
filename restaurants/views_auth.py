@@ -17,6 +17,8 @@ def merchant_login(request):
                 login(request, user)
                 if not staff_membership.restaurant.is_active:
                     return redirect('restaurant_pending')
+                if staff_membership.role == 'kitchen':
+                    return redirect('kitchen_display', slug=staff_membership.restaurant.slug)
                 return redirect('staff_order_screen', slug=staff_membership.restaurant.slug)
 
             login(request, user)

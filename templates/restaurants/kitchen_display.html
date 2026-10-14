@@ -31,8 +31,8 @@
                 <button id="fullscreenToggle" type="button" class="rounded-xl border border-slate-600 bg-slate-800 px-3 py-2 text-sm font-semibold hover:bg-slate-700">
                     ⛶ เต็มหน้าจอ
                 </button>
-                <a href="{% url 'merchant_orders' restaurant.slug %}" class="rounded-xl border border-slate-600 bg-slate-800 px-3 py-2 text-sm font-semibold hover:bg-slate-700">
-                    ออกจาก KDS
+                <a href="{% url 'merchant_logout' %}" class="rounded-xl border border-slate-600 bg-slate-800 px-3 py-2 text-sm font-semibold hover:bg-slate-700">
+                    ออกจากระบบครัว
                 </a>
             </div>
         </header>
@@ -62,14 +62,10 @@
         const knownOrders = new Set(
             Array.from(document.querySelectorAll('[data-order-id]'), element => element.dataset.orderId)
         );
-        const knownCalls = new Set(
-            Array.from(document.querySelectorAll('[data-call-id]'), element => element.dataset.callId)
-        );
-
         function playAlert(kind) {
             if (!audioEnabled) return;
             audioContext = audioContext || new (window.AudioContext || window.webkitAudioContext)();
-            const notes = kind === 'call' ? [880, 660, 880] : [660, 880];
+            const notes = [660, 880];
             notes.forEach((frequency, index) => {
                 const oscillator = audioContext.createOscillator();
                 const gain = audioContext.createGain();
@@ -108,21 +104,13 @@
         document.body.addEventListener('htmx:afterSwap', event => {
             if (event.detail.target.id !== 'kitchen-live') return;
             let hasNewOrder = false;
-            let hasNewCall = false;
             document.querySelectorAll('#kitchen-live [data-order-id]').forEach(element => {
                 if (!knownOrders.has(element.dataset.orderId)) {
                     knownOrders.add(element.dataset.orderId);
                     hasNewOrder = true;
                 }
             });
-            document.querySelectorAll('#kitchen-live [data-call-id]').forEach(element => {
-                if (!knownCalls.has(element.dataset.callId)) {
-                    knownCalls.add(element.dataset.callId);
-                    hasNewCall = true;
-                }
-            });
             if (hasNewOrder) playAlert('order');
-            if (hasNewCall) playAlert('call');
         });
 
         document.body.addEventListener('htmx:beforeRequest', () => {

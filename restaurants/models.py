@@ -222,6 +222,10 @@ class WaiterCall(models.Model):
 
 
 class RestaurantStaff(models.Model):
+    ROLE_CHOICES = (
+        ('order', 'พนักงานรับออร์เดอร์'),
+        ('kitchen', 'พ่อครัว / หน้าจอครัว'),
+    )
     restaurant = models.ForeignKey(
         Restaurant,
         on_delete=models.CASCADE,
@@ -233,6 +237,12 @@ class RestaurantStaff(models.Model):
         on_delete=models.CASCADE,
         related_name='restaurant_staff',
         verbose_name="บัญชีพนักงาน",
+    )
+    role = models.CharField(
+        max_length=20,
+        choices=ROLE_CHOICES,
+        default='order',
+        verbose_name="หน้าที่",
     )
     is_active = models.BooleanField(default=True, verbose_name="เปิดใช้งาน")
     created_at = models.DateTimeField(auto_now_add=True)
