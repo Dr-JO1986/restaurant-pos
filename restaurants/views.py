@@ -1342,6 +1342,7 @@ def table_bill_summary(request, slug, table_number):
         restaurant=restaurant,
         user=request.user,
         is_active=True,
+        role='order',
     ).exists()
     table = restaurant.tables.filter(name=table_number).first()
 

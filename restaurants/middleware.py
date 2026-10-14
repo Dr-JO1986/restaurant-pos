@@ -47,6 +47,20 @@ class RestaurantApprovalMiddleware:
 
 
 class StaffAccessMiddleware:
+    public_customer_views = {
+        'customer_storefront_table',
+        'place_order_table',
+        'order_success_table',
+        'online_storefront',
+        'place_online_order',
+        'online_order_success',
+        'online_order_receipt',
+        'table_bill_summary',
+        'api_order_status',
+        'call_waiter',
+        'cancel_order_item_customer',
+        'update_order_item_quantity_customer',
+    }
     allowed_staff_views = {
         'staff_order_screen',
         'merchant_login',
@@ -57,7 +71,6 @@ class StaffAccessMiddleware:
         'kitchen_live_updates',
         'kitchen_update_order_status',
         'kitchen_update_item_status',
-        'call_waiter',
     }
 
     def __init__(self, get_response):
@@ -86,8 +99,12 @@ class StaffAccessMiddleware:
                     match = None
                     view_name = None
 
+                if view_name in self.public_customer_views:
+                    return self.get_response(request)
+
                 is_own_restaurant_bill = (
                     staff_membership.is_active
+                    and match is not None
                     and view_name == 'table_bill_summary'
                     and match.kwargs.get('slug') == staff_membership.restaurant.slug
                 )

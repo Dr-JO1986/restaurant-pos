@@ -1185,6 +1185,18 @@ class KitchenDisplayAndWaiterCallTests(TestCase):
         self.client.force_login(kitchen_user)
         self.assertEqual(self.client.get(reverse('kitchen_display', args=[self.restaurant.slug])).status_code, 200)
         self.assertEqual(self.client.get(reverse('staff_order_screen', args=[self.restaurant.slug])).status_code, 403)
+        self.assertEqual(
+            self.client.get(
+                reverse('customer_storefront_table', args=[self.restaurant.slug, 'A1']),
+            ).status_code,
+            200,
+        )
+        self.assertEqual(
+            self.client.get(
+                reverse('table_bill_summary', args=[self.restaurant.slug, 'A1']),
+            ).status_code,
+            200,
+        )
 
     def test_kitchen_login_redirects_to_kitchen_screen(self):
         kitchen_user = get_user_model().objects.create_user(username='login-kitchen', password='test-pass')
