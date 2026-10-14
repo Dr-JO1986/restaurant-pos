@@ -10,6 +10,8 @@ from .views import (
     edit_menu_item, delete_menu_item, 
     edit_category, delete_category, menu_item_image,
     merchant_orders, update_order_status,
+    kitchen_display_view, kitchen_live_updates, kitchen_update_order_status,
+    kitchen_update_item_status, resolve_waiter_call, call_waiter,
     api_order_status,
     merchant_tables, delete_table,
     table_bill_summary, checkout_table_order,
@@ -40,6 +42,7 @@ urlpatterns = [
 
     # หน้าร้านสำหรับลูกค้าแบบระบุโต๊ะ / โซน (ต้องมีชื่อ path ตรงกับใน HTML)
     path('store/<slug:slug>/table/<str:table_number>/', customer_storefront, name='customer_storefront_table'),
+    path('store/<slug:slug>/table/<str:table_number>/call-waiter/', call_waiter, name='call_waiter'),
     path('store/<slug:slug>/table/<str:table_number>/order/', place_order, name='place_order_table'),
     path('store/<slug:slug>/table/<str:table_number>/success/<int:order_id>/', order_success, name='order_success_table'),
     path('store/<slug:slug>/online/', online_storefront, name='online_storefront'),
@@ -63,6 +66,11 @@ urlpatterns = [
     path('store/<slug:slug>/manage/tables/<int:table_id>/delete/', delete_table, name='delete_table'),
     path('store/<slug:slug>/manage/orders/', merchant_orders, name='merchant_orders'),
     path('store/<slug:slug>/manage/orders/<int:order_id>/update/', update_order_status, name='update_order_status'),
+    path('store/<slug:slug>/kitchen/', kitchen_display_view, name='kitchen_display'),
+    path('store/<slug:slug>/kitchen/live/', kitchen_live_updates, name='kitchen_live_updates'),
+    path('store/<slug:slug>/kitchen/<int:order_id>/update/', kitchen_update_order_status, name='kitchen_update_order_status'),
+    path('store/<slug:slug>/kitchen/item/<int:item_id>/update/', kitchen_update_item_status, name='kitchen_update_item_status'),
+    path('store/<slug:slug>/kitchen/call/<int:call_id>/resolve/', resolve_waiter_call, name='resolve_waiter_call'),
     path('store/<slug:slug>/manage/menu/<int:pk>/edit/', edit_menu_item, name='edit_menu_item'),
     path('store/<slug:slug>/manage/menu/<int:pk>/delete/', delete_menu_item, name='delete_menu_item'),
     path('store/<slug:slug>/menu/<int:pk>/image/', menu_item_image, name='menu_item_image'),

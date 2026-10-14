@@ -202,6 +202,25 @@ class Table(models.Model):
         return f"{self.name} ({self.restaurant.name})"
 
 
+class WaiterCall(models.Model):
+    restaurant = models.ForeignKey(
+        Restaurant,
+        on_delete=models.CASCADE,
+        related_name='waiter_calls',
+        verbose_name="ร้านอาหาร",
+    )
+    table_number = models.CharField(max_length=50, verbose_name="เลขโต๊ะ")
+    is_resolved = models.BooleanField(default=False, verbose_name="รับทราบแล้ว")
+    created_at = models.DateTimeField(auto_now_add=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ('created_at',)
+
+    def __str__(self):
+        return f"เรียกพนักงาน - โต๊ะ {self.table_number} ({self.restaurant.name})"
+
+
 class RestaurantStaff(models.Model):
     restaurant = models.ForeignKey(
         Restaurant,

@@ -53,6 +53,12 @@ class StaffAccessMiddleware:
         'merchant_logout',
         'menu_item_image',
         'restaurant_pending',
+        'kitchen_display',
+        'kitchen_live_updates',
+        'kitchen_update_order_status',
+        'kitchen_update_item_status',
+        'resolve_waiter_call',
+        'call_waiter',
     }
 
     def __init__(self, get_response):

@@ -1,0 +1,95 @@
+{% if waiter_calls %}
+    <section class="mb-4 rounded-2xl border border-rose-400/60 bg-rose-950/70 p-4 shadow-lg">
+        <div class="mb-3 flex items-center justify-between">
+            <h2 class="text-lg font-bold text-rose-100 sm:text-xl">🔔 เรียกพนักงาน <span class="rounded-full bg-rose-500 px-2 py-0.5 text-sm">{{ waiter_calls|length }}</span></h2>
+            <span class="text-xs font-medium text-rose-200">แจ้งใหม่จะแสดงภายใน 3 วินาที</span>
+        </div>
+        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {% for call in waiter_calls %}
+                <article data-call-id="{{ call.id }}" class="flex items-center justify-between gap-3 rounded-xl border border-rose-300/40 bg-rose-900/60 p-3">
+                    <div>
+                        <p class="text-xs uppercase tracking-wider text-rose-200">โต๊ะ</p>
+                        <p class="text-2xl font-bold text-white">{{ call.table_number }}</p>
+                        <p class="text-xs text-rose-200">{{ call.created_at|date:"H:i น." }}</p>
+                    </div>
+                    <form method="post" action="{% url 'resolve_waiter_call' restaurant.slug call.id %}">
+                        {% csrf_token %}
+                        <button type="submit" class="min-h-12 rounded-xl bg-rose-200 px-4 py-2 text-sm font-bold text-rose-950 hover:bg-white">
+                            รับทราบ
+                        </button>
+                    </form>
+                </article>
+            {% endfor %}
+        </div>
+    </section>
+{% endif %}
+
+{% if orders %}
+    <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+        {% for order in orders %}
+            <article data-order-id="{{ order.id }}" class="flex flex-col rounded-2xl border-2 {% if order.status == 'pending' %}border-amber-400 bg-slate-900{% else %}border-sky-400 bg-slate-900{% endif %} p-4 shadow-xl">
+                <header class="mb-3 flex items-start justify-between gap-3 border-b border-slate-700 pb-3">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">ออร์เดอร์ #{{ order.id }}</p>
+                        <h2 class="mt-1 text-3xl font-bold leading-tight text-white">{{ order.table_number }}</h2>
+                        <p class="mt-1 text-sm text-slate-300">{{ order.get_order_type_display }}{% if order.customer_name %} · {{ order.customer_name }}{% endif %}</p>
+                    </div>
+                    <div class="text-right">
+                        <span class="inline-block rounded-full px-3 py-1 text-sm font-bold {% if order.status == 'pending' %}bg-amber-400/15 text-amber-200{% else %}bg-sky-400/15 text-sky-200{% endif %}">
+                            {{ order.get_status_display }}
+                        </span>
+                        <p class="mt-2 text-xs text-slate-400">{{ order.created_at|date:"H:i" }}</p>
+                    </div>
+                </header>
+
+                <ul class="flex-1 space-y-3">
+                    {% for item in order.items_list %}
+                        <li class="rounded-xl border border-slate-700 bg-slate-800 p-3">
+                            <div class="flex items-start justify-between gap-2">
+                                <div>
+                                    <p class="text-lg font-bold leading-snug text-white">{{ item.menu_item.name }}</p>
+                                    <p class="mt-1 text-base font-semibold text-amber-200">× {{ item.quantity }}</p>
+                                    {% if item.selected_options %}
+                                        <p class="mt-2 rounded-lg bg-emerald-950/70 px-2 py-1 text-sm font-semibold text-emerald-200">
+                                            เพิ่ม: {% for option in item.selected_options %}{{ option.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                                        </p>
+                                    {% endif %}
+                                </div>
+                                <span class="shrink-0 rounded-lg bg-slate-700 px-2 py-1 text-xs font-semibold text-slate-200">{{ item.get_status_display }}</span>
+                            </div>
+                            <div class="mt-3 grid grid-cols-3 gap-2">
+                                <form method="post" action="{% url 'kitchen_update_item_status' restaurant.slug item.id %}">
+                                    {% csrf_token %}
+                                    <button name="status" value="pending" class="min-h-11 w-full rounded-lg bg-amber-400/15 px-2 py-2 text-xs font-bold text-amber-100 hover:bg-amber-400/30">รอทำ</button>
+                                </form>
+                                <form method="post" action="{% url 'kitchen_update_item_status' restaurant.slug item.id %}">
+                                    {% csrf_token %}
+                                    <button name="status" value="cooking" class="min-h-11 w-full rounded-lg bg-sky-400/15 px-2 py-2 text-xs font-bold text-sky-100 hover:bg-sky-400/30">กำลังทำ</button>
+                                </form>
+                                <form method="post" action="{% url 'kitchen_update_item_status' restaurant.slug item.id %}">
+                                    {% csrf_token %}
+                                    <button name="status" value="completed" class="min-h-11 w-full rounded-lg bg-emerald-400/15 px-2 py-2 text-xs font-bold text-emerald-100 hover:bg-emerald-400/30">เสร็จแล้ว</button>
+                                </form>
+                            </div>
+                        </li>
+                    {% empty %}
+                        <li class="py-8 text-center text-slate-400">ไม่มีรายการอาหารในออร์เดอร์นี้</li>
+                    {% endfor %}
+                </ul>
+
+                <form method="post" action="{% url 'kitchen_update_order_status' restaurant.slug order.id %}" class="mt-4 border-t border-slate-700 pt-3">
+                    {% csrf_token %}
+                    <button name="status" value="completed" class="min-h-14 w-full rounded-xl bg-emerald-500 px-4 py-3 text-base font-bold text-white shadow-lg hover:bg-emerald-400">
+                        ✓ ออร์เดอร์เสร็จพร้อมเสิร์ฟ
+                    </button>
+                </form>
+            </article>
+        {% endfor %}
+    </section>
+{% else %}
+    <section class="flex min-h-[55vh] flex-col items-center justify-center rounded-2xl border border-dashed border-slate-700 bg-slate-900/60 px-5 text-center">
+        <span class="text-6xl" aria-hidden="true">✓</span>
+        <h2 class="mt-4 text-2xl font-bold text-white sm:text-3xl">ไม่มีออร์เดอร์ค้าง</h2>
+        <p class="mt-2 text-base text-slate-400">ออร์เดอร์ใหม่จะแสดงที่นี่โดยอัตโนมัติ</p>
+    </section>
+{% endif %}

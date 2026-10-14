@@ -13,7 +13,7 @@ from PIL import Image
 
 from .models import (
     Category, MenuItem, OptionGroup, OptionItem, Order, OrderItem,
-    Restaurant, RestaurantStaff, Table,
+    Restaurant, RestaurantStaff, Table, WaiterCall,
 )
 
 
@@ -1044,3 +1044,111 @@ class OnlinePickupOrderTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertContains(response, 'ไม่พบโต๊ะที่เลือก', status_code=400)
         self.assertFalse(Order.objects.filter(restaurant=self.restaurant).exists())
+
+
+class KitchenDisplayAndWaiterCallTests(TestCase):
+    def setUp(self):
+        self.owner = get_user_model().objects.create_user(username='kitchen-owner', password='test-pass')
+        self.restaurant = Restaurant.objects.create(
+            user=self.owner,
+            name='Kitchen Test',
+            slug='kitchen-test',
+            owner_name='Owner',
+            phone='0812345678',
+            is_active=True,
+        )
+        self.category = Category.objects.create(restaurant=self.restaurant, name='อาหาร')
+        self.menu_item = MenuItem.objects.create(
+            restaurant=self.restaurant,
+            category=self.category,
+            name='ข้าวผัด',
+            price=Decimal('50.00'),
+        )
+
+    def create_order(self):
+        order = Order.objects.create(
+            restaurant=self.restaurant,
+            table_number='A1',
+            order_type='table',
+            status='pending',
+        )
+        item = OrderItem.objects.create(
+            order=order,
+            menu_item=self.menu_item,
+            quantity=1,
+            price=Decimal('50.00'),
+            selected_options=[{'name': 'เพิ่มไข่ดาว'}],
+        )
+        return order, item
+
+    def test_table_customer_can_call_waiter_and_pending_call_is_not_duplicated(self):
+        Table.objects.create(restaurant=self.restaurant, name='A1')
+        call_url = reverse('call_waiter', args=[self.restaurant.slug, 'A1'])
+        response = self.client.post(call_url)
+
+        self.assertRedirects(
+            response,
+            reverse('customer_storefront_table', args=[self.restaurant.slug, 'A1']),
+        )
+        call = WaiterCall.objects.get(restaurant=self.restaurant, table_number='A1')
+        self.assertFalse(call.is_resolved)
+        self.assertContains(self.client.get(response.url), 'เรียกพนักงานแล้ว')
+
+        self.client.post(call_url)
+        self.assertEqual(WaiterCall.objects.filter(restaurant=self.restaurant).count(), 1)
+
+    def test_kitchen_staff_can_poll_and_acknowledge_calls_and_update_items(self):
+        staff_user = get_user_model().objects.create_user(username='kitchen-staff', password='test-pass')
+        RestaurantStaff.objects.create(restaurant=self.restaurant, user=staff_user)
+        order, item = self.create_order()
+        waiter_call = WaiterCall.objects.create(restaurant=self.restaurant, table_number='A1')
+        self.client.force_login(staff_user)
+
+        display = self.client.get(reverse('kitchen_display', args=[self.restaurant.slug]))
+        self.assertEqual(display.status_code, 200)
+        self.assertContains(display, 'Kitchen Display System')
+        self.assertContains(display, 'ทุก 3 วินาที')
+
+        updates = self.client.get(reverse('kitchen_live_updates', args=[self.restaurant.slug]))
+        self.assertContains(updates, f'data-order-id="{order.id}"')
+        self.assertContains(updates, 'เพิ่มไข่ดาว')
+        self.assertContains(updates, f'data-call-id="{waiter_call.id}"')
+
+        response = self.client.post(
+            reverse('kitchen_update_item_status', args=[self.restaurant.slug, item.id]),
+            {'status': 'cooking'},
+        )
+        self.assertRedirects(response, reverse('kitchen_display', args=[self.restaurant.slug]))
+        item.refresh_from_db()
+        order.refresh_from_db()
+        self.assertEqual(item.status, 'cooking')
+        self.assertEqual(order.status, 'cooking')
+
+        self.client.post(
+            reverse('resolve_waiter_call', args=[self.restaurant.slug, waiter_call.id]),
+        )
+        waiter_call.refresh_from_db()
+        self.assertTrue(waiter_call.is_resolved)
+        self.assertIsNotNone(waiter_call.resolved_at)
+
+    def test_kitchen_routes_require_authorized_user_and_post_status_changes(self):
+        order, item = self.create_order()
+        display_url = reverse('kitchen_display', args=[self.restaurant.slug])
+        update_url = reverse('kitchen_update_order_status', args=[self.restaurant.slug, order.id])
+
+        anonymous_response = self.client.get(display_url)
+        self.assertEqual(anonymous_response.status_code, 302)
+
+        unrelated_user = get_user_model().objects.create_user(username='unrelated', password='test-pass')
+        self.client.force_login(unrelated_user)
+        forbidden_response = self.client.get(display_url)
+        self.assertEqual(forbidden_response.status_code, 302)
+        self.assertEqual(self.client.get(reverse('kitchen_live_updates', args=[self.restaurant.slug])).status_code, 302)
+
+        self.client.force_login(self.owner)
+        self.assertEqual(self.client.get(update_url).status_code, 405)
+        self.client.post(update_url, {'status': 'cooking'})
+        order.refresh_from_db()
+        item.refresh_from_db()
+        self.assertEqual(order.status, 'cooking')
+        self.assertEqual(item.status, 'cooking')

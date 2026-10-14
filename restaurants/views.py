@@ -1,3 +1,4 @@
+from functools import wraps
 from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse
 from django.conf import settings
@@ -7,13 +8,13 @@ from django.contrib.auth.decorators import user_passes_test
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
-from django.http import FileResponse, Http404, HttpResponse, HttpResponseForbidden, JsonResponse
+from django.http import FileResponse, Http404, HttpResponse, HttpResponseBadRequest, HttpResponseForbidden, JsonResponse
 from django.utils.html import escape
 from django.utils.dateparse import parse_date, parse_datetime
 from pathlib import Path
 from .models import (
     Restaurant, RestaurantStaff, MenuItem, Category, OptionGroup, OptionItem, Order, OrderItem, Table, TransactionRecord,
-    ContactInquiry, validate_payment_slip,
+    WaiterCall, ContactInquiry, validate_payment_slip,
 )
 from .forms import (
     MenuItemForm, CategoryForm, OptionGroupForm, OptionItemForm,
@@ -22,7 +23,7 @@ from .forms import (
 )
 from django.utils import timezone
 from django.core.paginator import Paginator
-from django.db.models import Q
+from django.db.models import Prefetch, Q
 from django.db.models.functions import ExtractYear, ExtractMonth, ExtractDay
 from django.db.models.functions import TruncDate
 from django.db.models import Sum, F
@@ -41,6 +42,31 @@ def _can_place_staff_order(request, restaurant):
         user=request.user,
         is_active=True,
     ).exists()
+
+
+def _can_access_kitchen(request, restaurant):
+    if request.user.is_superuser:
+        return True
+    if restaurant.user == request.user:
+        return True
+    return RestaurantStaff.objects.filter(
+        restaurant=restaurant,
+        user=request.user,
+        is_active=True,
+    ).exists()
+
+
+def kitchen_staff_required(view_func):
+    @wraps(view_func)
+    @login_required(login_url='/login/')
+    def _wrapped(request, *args, **kwargs):
+        slug = kwargs.get('slug')
+        restaurant = get_object_or_404(Restaurant, slug=slug) if slug else None
+        if restaurant is None or not _can_access_kitchen(request, restaurant):
+            messages.error(request, 'บัญชีของคุณไม่มีสิทธิ์เข้าหน้าจอครัว กรุณาเข้าสู่ระบบด้วยบัญชีพนักงานที่ได้รับอนุญาต')
+            return redirect('merchant_login')
+        return view_func(request, *args, **kwargs)
+    return _wrapped
 
 
 def _get_selected_options(request, menu_item):
@@ -574,6 +600,7 @@ def delete_category(request, slug, pk):
 
 def customer_storefront(request, slug, table_number):
     restaurant = get_object_or_404(Restaurant, slug=slug, is_active=True)
+    table_exists = Table.objects.filter(restaurant=restaurant, name=table_number).exists()
     categories = restaurant.categories.all()
     menu_items = restaurant.menu_items.filter(is_available=True).prefetch_related(
         'option_groups__options',
@@ -594,9 +621,35 @@ def customer_storefront(request, slug, table_number):
         'menu_items': menu_items,
         'selected_category': category_id,
         'table_number': table_number,
+        'table_exists': table_exists,
         'active_orders': active_orders,
+        'has_pending_waiter_call': restaurant.waiter_calls.filter(
+            table_number=table_number,
+            is_resolved=False,
+        ).exists(),
     }
     return render(request, 'restaurants/storefront.html', context)
+
+
+@require_POST
+def call_waiter(request, slug, table_number):
+    restaurant = get_object_or_404(Restaurant, slug=slug, is_active=True)
+    table_number = table_number.strip()
+    if not table_number or len(table_number) > 50:
+        return HttpResponseBadRequest('ข้อมูลโต๊ะไม่ถูกต้อง')
+    if not Table.objects.filter(restaurant=restaurant, name=table_number).exists():
+        raise Http404('ไม่พบโต๊ะนี้ในร้าน')
+
+    pending_call = restaurant.waiter_calls.filter(
+        table_number=table_number,
+        is_resolved=False,
+    ).first()
+    if pending_call:
+        messages.info(request, 'พนักงานได้รับการแจ้งเรียกจากโต๊ะนี้แล้ว กำลังไปให้บริการ')
+    else:
+        WaiterCall.objects.create(restaurant=restaurant, table_number=table_number)
+        messages.success(request, 'เรียกพนักงานแล้ว กรุณารอสักครู่')
+    return redirect('customer_storefront_table', slug=restaurant.slug, table_number=table_number)
 
 
 def online_storefront(request, slug):
@@ -975,6 +1028,124 @@ def order_success(request, slug, table_number, order_id):
     return render(request, 'restaurants/order_success.html', context)
 
 
+@kitchen_staff_required
+def kitchen_display_view(request, slug):
+    restaurant = get_object_or_404(Restaurant, slug=slug)
+    context = _kitchen_display_context(restaurant)
+    return render(request, 'restaurants/kitchen_display.html', context)
+
+
+def _kitchen_display_context(restaurant):
+    orders = (
+        restaurant.orders.filter(
+            status__in=['pending', 'cooking'],
+            items__status__in=['pending', 'cooking'],
+        )
+        .filter(
+            Q(order_type__in=['table', 'counter'])
+            | Q(order_type='pickup', payment_status='confirmed')
+        )
+        .prefetch_related(
+            Prefetch(
+                'items',
+                queryset=OrderItem.objects.select_related('menu_item').order_by('id'),
+            ),
+        )
+        .distinct()
+        .order_by('created_at')
+    )
+
+    for order in orders:
+        order.items_list = list(order.items.all())
+
+    return {
+        'restaurant': restaurant,
+        'orders': orders,
+        'waiter_calls': restaurant.waiter_calls.filter(is_resolved=False),
+    }
+
+
+@kitchen_staff_required
+def kitchen_live_updates(request, slug):
+    restaurant = get_object_or_404(Restaurant, slug=slug)
+    response = render(
+        request,
+        'restaurants/kitchen_live_updates.html',
+        _kitchen_display_context(restaurant),
+    )
+    response['Cache-Control'] = 'no-store'
+    return response
+
+
+@kitchen_staff_required
+@require_POST
+def kitchen_update_order_status(request, slug, order_id):
+    restaurant = get_object_or_404(Restaurant, slug=slug)
+    order = get_object_or_404(Order, id=order_id, restaurant=restaurant)
+    new_status = request.POST.get('status')
+
+    if (
+        new_status in dict(Order.STATUS_CHOICES)
+        and (order.order_type != 'pickup' or order.payment_status == 'confirmed')
+    ):
+        order.status = new_status
+        if new_status == 'completed':
+            order.items.exclude(status='cancelled').update(status='completed')
+        elif new_status == 'cooking':
+            order.items.exclude(status='cancelled').update(status='cooking')
+        elif new_status == 'pending':
+            order.items.exclude(status='cancelled').update(status='pending')
+        elif new_status == 'cancelled':
+            order.items.exclude(status='cancelled').update(status='cancelled')
+        order.save(update_fields=['status'])
+        messages.success(request, f'อัปเดตสถานะออร์เดอร์ #{order.id} เป็น "{order.get_status_display()}" แล้ว')
+
+    return redirect('kitchen_display', slug=restaurant.slug)
+
+
+@kitchen_staff_required
+@require_POST
+def kitchen_update_item_status(request, slug, item_id):
+    restaurant = get_object_or_404(Restaurant, slug=slug)
+    item = get_object_or_404(
+        OrderItem.objects.select_related('order'),
+        id=item_id,
+        order__restaurant=restaurant,
+    )
+    new_status = request.POST.get('status')
+    allowed_statuses = {'pending', 'cooking', 'completed'}
+    if item.status != 'cancelled' and new_status in allowed_statuses and (
+        item.order.order_type != 'pickup' or item.order.payment_status == 'confirmed'
+    ):
+        item.status = new_status
+        item.save(update_fields=['status'])
+        active_items = item.order.items.exclude(status='cancelled')
+        if active_items.exists() and not active_items.exclude(status='completed').exists():
+            item.order.status = 'completed'
+        elif active_items.filter(status='cooking').exists():
+            item.order.status = 'cooking'
+        else:
+            item.order.status = 'pending'
+        item.order.save(update_fields=['status'])
+    return redirect('kitchen_display', slug=restaurant.slug)
+
+
+@kitchen_staff_required
+@require_POST
+def resolve_waiter_call(request, slug, call_id):
+    restaurant = get_object_or_404(Restaurant, slug=slug)
+    waiter_call = get_object_or_404(
+        WaiterCall,
+        id=call_id,
+        restaurant=restaurant,
+        is_resolved=False,
+    )
+    waiter_call.is_resolved = True
+    waiter_call.resolved_at = timezone.now()
+    waiter_call.save(update_fields=['is_resolved', 'resolved_at'])
+    return redirect('kitchen_display', slug=restaurant.slug)
+
+
 @login_required(login_url='/login/')
 def merchant_orders(request, slug):
     restaurant = get_object_or_404(Restaurant, slug=slug)
@@ -1066,7 +1237,11 @@ def update_order_status(request, slug, order_id):
 
     if order.order_type == 'pickup' and restaurant.user != request.user and not request.user.is_superuser:
         return HttpResponseForbidden()
-    
+
+    if not _can_access_kitchen(request, restaurant):
+        messages.error(request, 'บัญชีของคุณไม่มีสิทธิ์เปลี่ยนสถานะแอออร์เดอร์')
+        return redirect('merchant_login')
+
     if request.method == 'POST':
         new_status = request.POST.get('status')
         if (
@@ -1075,7 +1250,7 @@ def update_order_status(request, slug, order_id):
         ):
             order.status = new_status
             order.save()
-            
+
     return redirect('merchant_orders', slug=restaurant.slug)
 
 
@@ -1224,19 +1399,15 @@ def merchant_table_receipt(request, slug, table_number):
 @login_required(login_url='/login/')
 def update_order_item_status(request, slug, item_id):
     restaurant = get_object_or_404(Restaurant, slug=slug)
-    if restaurant.user != request.user and not request.user.is_superuser:
-        return render(request, 'restaurants/403.html', status=403)
+    if not _can_access_kitchen(request, restaurant):
+        messages.error(request, 'บัญชีของคุณไม่มีสิทธิ์เปลี่ยนสถานะรายการอาหาร')
+        return redirect('merchant_login')
 
     item = get_object_or_404(OrderItem, id=item_id, order__restaurant=restaurant)
 
-    if item.order.order_type == 'pickup' and (
-        restaurant.user != request.user and not request.user.is_superuser
-    ):
-        return render(request, 'restaurants/403.html', status=403)
     if item.order.order_type == 'pickup' and item.order.payment_status != 'confirmed':
         return redirect('merchant_orders', slug=restaurant.slug)
-    
-    # ป้องกันไม่ให้แก้ไขอะไรต่อได้อีกหากรายการนั้นถูกยกเลิกไปแล้ว
+
     if item.status == 'cancelled':
         return redirect('merchant_table_status_manage', slug=restaurant.slug, table_number=item.order.table_number)
 
@@ -1245,7 +1416,7 @@ def update_order_item_status(request, slug, item_id):
         if new_status in ['pending', 'cooking', 'completed', 'cancelled']:
             item.status = new_status
             item.save()
-            
+
     return redirect('merchant_table_status_manage', slug=restaurant.slug, table_number=item.order.table_number)
 
 
