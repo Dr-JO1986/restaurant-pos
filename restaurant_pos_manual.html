@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="คู่มือการใช้งานระบบ Smart Restaurant POS System สำหรับเจ้าของร้าน พนักงานรับออร์เดอร์ และพ่อครัว">
+  <title>คู่มือการใช้งาน Smart Restaurant POS System</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #182433;
+      --muted: #5d6b7c;
+      --line: #dce4ec;
+      --paper: #ffffff;
+      --wash: #f2f6fa;
+      --brand: #174a73;
+      --brand-dark: #103550;
+      --teal: #087e78;
+      --amber: #a65b08;
+      --soft-blue: #eaf3fa;
+      --soft-teal: #e8f5f2;
+      --soft-amber: #fff4df;
+    }
+
+    @page {
+      size: A4;
+      margin: 20mm;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      background: #e9eef3;
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: #e9eef3;
+      font-family: "Sarabun", "Leelawadee UI", Tahoma, sans-serif;
+      font-size: 15px;
+      line-height: 1.7;
+    }
+
+    .toolbar {
+      position: sticky;
+      z-index: 2;
+      top: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 14px;
+      padding: 12px 18px;
+      color: #fff;
+      background: var(--brand-dark);
+      box-shadow: 0 3px 14px #10273b33;
+    }
+
+    .toolbar p {
+      margin: 0;
+      font-size: 13px;
+    }
+
+    .print-button {
+      border: 0;
+      border-radius: 9px;
+      padding: 9px 17px;
+      color: #17344c;
+      background: #fff;
+      font: inherit;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background .18s ease, transform .18s ease;
+    }
+
+    .print-button:hover {
+      background: #e7f2fa;
+      transform: translateY(-1px);
+    }
+
+    .print-button:focus-visible {
+      outline: 3px solid #f6bd55;
+      outline-offset: 3px;
+    }
+
+    .document {
+      width: min(210mm, calc(100% - 32px));
+      margin: 28px auto;
+      padding: 20mm;
+      background: var(--paper);
+      box-shadow: 0 12px 38px #1a34401a;
+    }
+
+    .cover {
+      position: relative;
+      display: flex;
+      min-height: 235mm;
+      flex-direction: column;
+      justify-content: center;
+      overflow: hidden;
+      padding: 16mm 10mm;
+      border: 1px solid var(--line);
+      background:
+        radial-gradient(circle at 92% 12%, #cce5ed 0, #cce5ed 2px, transparent 3px) 0 0 / 22px 22px,
+        linear-gradient(145deg, #f7fbfd 4%, #e7f1f7 100%);
+    }
+
+    .cover::after {
+      position: absolute;
+      right: -35mm;
+      bottom: -45mm;
+      width: 125mm;
+      height: 125mm;
+      border: 1px solid #174a731f;
+      border-radius: 50%;
+      box-shadow: 0 0 0 18mm #174a7308, 0 0 0 36mm #174a7306;
+      content: "";
+    }
+
+    .cover-mark {
+      display: grid;
+      width: 20mm;
+      height: 20mm;
+      place-items: center;
+      margin-bottom: 12mm;
+      border-radius: 6mm;
+      color: #fff;
+      background: var(--brand);
+      font-size: 28px;
+      font-weight: 700;
+    }
+
+    .eyebrow {
+      margin: 0 0 8px;
+      color: var(--teal);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    h1, h2, h3, p {
+      margin-top: 0;
+    }
+
+    .cover h1 {
+      max-width: 145mm;
+      margin: 0;
+      color: var(--brand-dark);
+      font-size: 34px;
+      line-height: 1.35;
+    }
+
+    .cover .subtitle {
+      max-width: 130mm;
+      margin: 12px 0 0;
+      color: var(--muted);
+      font-size: 17px;
+    }
+
+    .role-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 18mm;
+    }
+
+    .role-chip {
+      border: 1px solid #c7d9e6;
+      border-radius: 999px;
+      padding: 6px 12px;
+      color: var(--brand-dark);
+      background: #ffffffc7;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .cover-note {
+      position: absolute;
+      right: 10mm;
+      bottom: 10mm;
+      left: 10mm;
+      margin: 0;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .intro {
+      padding: 18mm 4mm 8mm;
+    }
+
+    .intro h2, .chapter h2 {
+      margin: 0 0 7px;
+      color: var(--brand-dark);
+      font-size: 25px;
+      line-height: 1.4;
+    }
+
+    .intro > p, .chapter-intro {
+      color: var(--muted);
+    }
+
+    .contents {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+      margin: 20px 0 18px;
+    }
+
+    .contents a {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      color: var(--ink);
+      text-decoration: none;
+    }
+
+    .contents a:hover {
+      border-color: #a9c6d9;
+      background: var(--wash);
+    }
+
+    .contents-number {
+      display: grid;
+      width: 31px;
+      height: 31px;
+      flex: 0 0 31px;
+      place-items: center;
+      border-radius: 9px;
+      color: #fff;
+      background: var(--brand);
+      font-weight: 700;
+    }
+
+    .contents small {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .notice {
+      padding: 13px 15px;
+      border-left: 4px solid var(--teal);
+      border-radius: 0 9px 9px 0;
+      color: #234a49;
+      background: var(--soft-teal);
+      font-size: 13px;
+    }
+
+    .chapter {
+      padding: 10mm 4mm 0;
+    }
+
+    .chapter-heading {
+      display: flex;
+      align-items: flex-start;
+      gap: 13px;
+      margin-bottom: 15px;
+      padding-bottom: 13px;
+      border-bottom: 2px solid var(--line);
+    }
+
+    .chapter-number {
+      display: grid;
+      width: 42px;
+      height: 42px;
+      flex: 0 0 42px;
+      place-items: center;
+      border-radius: 12px;
+      color: #fff;
+      background: var(--brand);
+      font-size: 19px;
+      font-weight: 700;
+    }
+
+    .chapter h2 {
+      margin-bottom: 2px;
+      font-size: 22px;
+    }
+
+    .chapter-heading p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    h3 {
+      margin-bottom: 7px;
+      color: var(--brand-dark);
+      font-size: 16px;
+    }
+
+    .section {
+      margin: 15px 0;
+    }
+
+    .card {
+      margin: 10px 0;
+      padding: 13px 15px;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      background: #fff;
+    }
+
+    .card p:last-child, .card ul:last-child, .card ol:last-child {
+      margin-bottom: 0;
+    }
+
+    .card-blue {
+      border-color: #d3e3ee;
+      background: var(--soft-blue);
+    }
+
+    .card-amber {
+      border-color: #f0dfbc;
+      background: var(--soft-amber);
+    }
+
+    .steps {
+      counter-reset: step;
+      display: grid;
+      gap: 8px;
+      margin: 10px 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .steps li {
+      position: relative;
+      min-height: 33px;
+      padding: 3px 0 3px 42px;
+      counter-increment: step;
+    }
+
+    .steps li::before {
+      position: absolute;
+      top: 0;
+      left: 0;
+      display: grid;
+      width: 29px;
+      height: 29px;
+      place-items: center;
+      border-radius: 50%;
+      color: var(--brand);
+      background: var(--soft-blue);
+      content: counter(step);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    ul.checklist, ul.bullets {
+      margin: 8px 0 0;
+      padding-left: 20px;
+    }
+
+    ul.checklist li, ul.bullets li {
+      margin: 4px 0;
+    }
+
+    ul.checklist {
+      padding-left: 0;
+      list-style: none;
+    }
+
+    ul.checklist li::before {
+      margin-right: 8px;
+      color: var(--teal);
+      content: "✓";
+      font-weight: 700;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      margin: 10px 0;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    th, td {
+      padding: 8px 9px;
+      border: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      color: var(--brand-dark);
+      background: var(--wash);
+      font-weight: 700;
+    }
+
+    .pill {
+      display: inline-block;
+      border-radius: 999px;
+      padding: 2px 8px;
+      color: var(--brand-dark);
+      background: #e8f0f6;
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .muted {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .key {
+      display: inline-block;
+      padding: 1px 7px;
+      border: 1px solid #bdc9d4;
+      border-bottom-width: 2px;
+      border-radius: 5px;
+      color: var(--ink);
+      background: #fff;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .credit {
+      margin: 22mm 4mm 0;
+      padding: 14px 16px;
+      border-top: 2px solid var(--brand);
+      background: var(--wash);
+      text-align: center;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    .credit h2 {
+      margin: 0 0 4px;
+      color: var(--brand-dark);
+      font-size: 15px;
+    }
+
+    .credit p {
+      margin: 2px 0;
+      font-size: 12px;
+    }
+
+    .credit a {
+      color: var(--brand);
+      text-decoration: none;
+    }
+
+    .endmark {
+      margin: 10px 0 0;
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    @media (min-width: 760px) {
+      .contents {
+        grid-template-columns: repeat(3, 1fr);
+      }
+
+      .contents a {
+        align-items: flex-start;
+      }
+    }
+
+    @media print {
+      .no-print {
+        display: none !important;
+      }
+
+      html, body {
+        width: auto;
+        min-width: 0;
+        margin: 0;
+        background: #fff;
+      }
+
+      body {
+        color: #182433;
+        font-size: 10pt;
+        line-height: 1.55;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      .document {
+        width: auto;
+        margin: 0;
+        padding: 0;
+        box-shadow: none;
+      }
+
+      .cover {
+        min-height: 245mm;
+        page-break-after: always;
+        break-after: page;
+      }
+
+      .intro {
+        padding-top: 4mm;
+      }
+
+      .chapter {
+        padding-top: 5mm;
+      }
+
+      #owner, #staff, #kitchen {
+        page-break-before: always;
+        break-before: page;
+      }
+
+      .card, .notice, .chapter-heading, .contents a, table, tr, .credit {
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+
+      .section {
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+
+      a {
+        color: inherit;
+      }
+
+      .contents a {
+        padding: 8px 10px;
+      }
+
+      .credit {
+        margin-top: 14mm;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar no-print" aria-label="เครื่องมือเอกสาร">
+    <p>คู่มือพร้อมพิมพ์ขนาด A4 · แนะนำให้เลือกกระดาษ A4 และเปิดพิมพ์พื้นหลัง</p>
+    <button class="print-button" type="button" onclick="window.print()" aria-label="พิมพ์คู่มือ">
+      พิมพ์คู่มือ <span class="key">Ctrl</span> + <span class="key">P</span>
+    </button>
+  </div>
+
+  <main class="document">
+    <header class="cover">
+      <div class="cover-mark" aria-hidden="true">R</div>
+      <p class="eyebrow">คู่มือการใช้งานระบบ</p>
+      <h1>Smart Restaurant<br>POS System</h1>
+      <p class="subtitle">คู่มือปฏิบัติงานสำหรับเจ้าของร้าน พนักงานรับออร์เดอร์ และทีมครัว</p>
+      <div class="role-chips" aria-label="กลุ่มผู้ใช้งาน">
+        <span class="role-chip">Owner / Merchant</span>
+        <span class="role-chip">Staff / POS</span>
+        <span class="role-chip">Kitchen / KDS</span>
+      </div>
+      <p class="cover-note">ฉบับสำหรับใช้งานภายในร้าน · โปรดเก็บชื่อผู้ใช้และรหัสผ่านไว้เป็นความลับ</p>
+    </header>
+
+    <section class="intro" aria-labelledby="intro-title">
+      <p class="eyebrow">เริ่มต้นใช้งาน</p>
+      <h2 id="intro-title">คู่มือนี้เหมาะกับใคร</h2>
+      <p>ทำตามบทบาทของคุณเพื่อจัดการร้าน รับออร์เดอร์ และส่งงานให้ครัวได้ต่อเนื่อง ก่อนเริ่มใช้งาน ให้ตรวจสอบว่าอุปกรณ์เชื่อมต่ออินเทอร์เน็ต และได้รับลิงก์ระบบกับบัญชีจากผู้ดูแลร้านแล้ว</p>
+
+      <nav class="contents" aria-label="สารบัญ">
+        <a href="#owner">
+          <span class="contents-number">1</span>
+          <span><strong>เจ้าของร้าน</strong><small>จัดการร้าน เมนู บัญชี และออร์เดอร์</small></span>
+        </a>
+        <a href="#staff">
+          <span class="contents-number">2</span>
+          <span><strong>พนักงานรับออร์เดอร์</strong><small>บันทึกออร์เดอร์โต๊ะและส่งเข้าครัว</small></span>
+        </a>
+        <a href="#kitchen">
+          <span class="contents-number">3</span>
+          <span><strong>พ่อครัว / KDS</strong><small>ติดตามและอัปเดตสถานะอาหาร</small></span>
+        </a>
+      </nav>
+
+      <div class="notice">
+        <strong>หมายเหตุ:</strong> ชื่อเมนู ปุ่ม หรือลิงก์ที่ปรากฏอาจต่างกันเล็กน้อยตามการตั้งค่าร้าน หากเข้าใช้งานไม่ได้หรือไม่พบเมนูที่ต้องการ ให้ติดต่อเจ้าของร้านหรือผู้ดูแลระบบ
+      </div>
+    </section>
+
+    <section class="chapter" id="owner" aria-labelledby="owner-title">
+      <div class="chapter-heading">
+        <span class="chapter-number">1</span>
+        <div>
+          <p class="eyebrow">Owner / Merchant</p>
+          <h2 id="owner-title">สำหรับเจ้าของร้าน</h2>
+          <p>จัดเตรียมข้อมูลร้านและบัญชีทีมงาน แล้วติดตามงานประจำวันจากแดชบอร์ด</p>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>1.1 เข้าสู่ระบบและจัดการภาพรวมร้าน</h3>
+        <ol class="steps">
+          <li>เปิดลิงก์ระบบของร้านในเว็บเบราว์เซอร์ แล้วเข้าสู่ระบบด้วยบัญชีเจ้าของร้าน</li>
+          <li>เปิดหน้า <strong>แดชบอร์ด</strong> เพื่อดูภาพรวมร้าน รายการเมนู และทางลัดไปยังการจัดการออร์เดอร์ บัญชีพนักงาน และการเรียกพนักงาน</li>
+          <li>ตรวจสอบข้อมูลร้านและการตั้งค่าที่แสดงในหน้าแดชบอร์ดให้ถูกต้อง เช่น ชื่อร้าน รายละเอียด และข้อมูลติดต่อหรือการชำระเงินที่ระบบร้องขอ</li>
+          <li>บันทึกทุกครั้งหลังแก้ไข และตรวจดูข้อความยืนยันหรือข้อผิดพลาดบนหน้าจอ</li>
+        </ol>
+        <div class="card card-amber">
+          <strong>ก่อนเปิดรับออร์เดอร์ออนไลน์</strong>
+          <p class="muted">หากแดชบอร์ดแจ้งให้กรอกข้อมูลร้านหรือข้อมูลบัญชีให้ครบ ให้ดำเนินการให้เรียบร้อยก่อน ลูกค้าจึงจะสามารถส่งออร์เดอร์ออนไลน์ได้ตามปกติ</p>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>1.2 จัดหมวดหมู่และเมนูอาหาร</h3>
+        <ol class="steps">
+          <li>จากแดชบอร์ด เปิดส่วนจัดการเมนู แล้วเพิ่มหมวดหมู่ เช่น อาหารจานหลัก เครื่องดื่ม หรือของหวาน</li>
+          <li>เพิ่มเมนูในหมวดที่ต้องการ กรอกชื่อ ราคา และรายละเอียดตามช่องที่ระบบแสดง รวมถึงรูปภาพหรือข้อมูลตัวเลือกเพิ่มเติมถ้ามี</li>
+          <li>ตรวจสอบการตั้งค่าสถานะเปิดขาย/ปิดขายและข้อมูลที่กรอก แล้วบันทึกเมนู</li>
+          <li>ทบทวนรายการเมนูทั้งหมดบนแดชบอร์ด หากราคา ชื่อ หรือรายละเอียดเปลี่ยน ให้แก้ไขและบันทึกก่อนเริ่มรับออร์เดอร์</li>
+        </ol>
+        <p class="muted">เมนูที่ยังไม่เปิดขายหรือไม่มีเมนูที่เปิดขาย อาจไม่ปรากฏให้พนักงานเลือกในหน้าคีย์ออร์เดอร์</p>
+      </div>
+
+      <div class="section">
+        <h3>1.3 สร้างและดูแลบัญชีพนักงาน / พ่อครัว</h3>
+        <ol class="steps">
+          <li>เปิดหน้า <strong>จัดการบัญชีพนักงาน</strong> จากแดชบอร์ด</li>
+          <li>กรอกชื่อผู้ใช้และรหัสผ่านตามแบบฟอร์ม จากนั้นเลือกบทบาทให้ตรงกับหน้าที่ของผู้ใช้งาน</li>
+          <li>กด <strong>สร้างบัญชี</strong> และแจ้งข้อมูลเข้าสู่ระบบแก่พนักงานเป็นการส่วนตัว</li>
+          <li>ตรวจสอบรายชื่อ สถานะ และบทบาทในรายการพนักงาน หากลืมรหัสผ่านให้ใช้เมนูตั้งรหัสผ่านใหม่ หรือปิดใช้งานบัญชีเมื่อไม่ต้องการให้เข้าใช้</li>
+        </ol>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>บัญชี / บทบาท</th><th>การใช้งานโดยทั่วไป</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><span class="pill">พนักงานรับออร์เดอร์</span></td><td>ใช้หน้าคีย์ออร์เดอร์เพื่อบันทึกออร์เดอร์หน้าร้านและส่งรายการเข้าครัว</td></tr>
+              <tr><td><span class="pill">พ่อครัว / ครัว</span></td><td>เข้าใช้หน้าจอ KDS เพื่อดูรายการอาหารและอัปเดตสถานะการทำอาหาร</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="muted">กำหนดรหัสผ่านที่คาดเดายาก ไม่ใช้รหัสผ่านร่วมกัน และเปลี่ยนรหัสผ่านทันทีหากสงสัยว่ามีผู้อื่นทราบ</p>
+      </div>
+
+      <div class="section">
+        <h3>1.4 ติดตามออร์เดอร์และพิมพ์ใบเสร็จ</h3>
+        <ol class="steps">
+          <li>เปิดหน้า <strong>จัดการออร์เดอร์และโต๊ะ</strong> เพื่อค้นหาและตรวจสอบออร์เดอร์ของร้าน รวมถึงออร์เดอร์ออนไลน์ที่ยืนยันการชำระเงินแล้ว</li>
+          <li>เลือกดูรายละเอียดหรือรายการโต๊ะที่ต้องการ ตรวจสอบเลขออร์เดอร์ รายการอาหาร ยอดรวม และสถานะก่อนดำเนินการต่อ</li>
+          <li>กด <strong>ดู / พิมพ์ใบเสร็จ</strong> ในออร์เดอร์ที่ต้องการ ระบบจะแสดงหน้าสรุปบิล</li>
+          <li>กดปุ่มพิมพ์ใบเสร็จบนหน้าสรุป หรือใช้ <span class="key">Ctrl</span> + <span class="key">P</span> แล้วเลือกเครื่องพิมพ์และกระดาษให้เหมาะสม</li>
+        </ol>
+        <div class="card card-blue">
+          <strong>ตรวจสอบก่อนพิมพ์</strong>
+          <p class="muted">ตรวจเลขออร์เดอร์และยอดเงินให้ตรงกับบิลที่ต้องการพิมพ์ ในหน้าต่างพิมพ์ของเบราว์เซอร์ให้เลือกเครื่องพิมพ์ที่ถูกต้อง และตรวจตัวอย่างก่อนสั่งพิมพ์</p>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>1.5 รับแจ้งเตือนเมื่อลูกค้าเรียกพนักงาน</h3>
+        <ol class="steps">
+          <li>เปิดหน้าแดชบอร์ดหรือส่วน <strong>ลูกค้าเรียกพนักงาน</strong> ค้างไว้บนอุปกรณ์ที่พนักงานตรวจดูได้</li>
+          <li>รายการที่รอจะระบุหมายเลขโต๊ะและเวลาที่เรียก โดยหน้าจอจะตรวจสอบรายการใหม่อัตโนมัติเป็นระยะ</li>
+          <li>ส่งพนักงานไปยังโต๊ะที่แสดง แล้วกด <strong>รับทราบ</strong> เพื่อปิดรายการเรียกที่จัดการแล้ว</li>
+          <li>ตรวจดูรายการที่ยังค้างอยู่เป็นระยะ เพื่อไม่ให้มีสายเรียกตกหล่น</li>
+        </ol>
+        <div class="card card-amber">
+          <strong>ข้อควรทราบ:</strong> การกดรับทราบเป็นการจัดการรายการแจ้งเตือน ไม่ใช่การยืนยันว่าออร์เดอร์หรือการชำระเงินเสร็จสมบูรณ์
+        </div>
+      </div>
+    </section>
+
+    <section class="chapter" id="staff" aria-labelledby="staff-title">
+      <div class="chapter-heading">
+        <span class="chapter-number">2</span>
+        <div>
+          <p class="eyebrow">Staff / POS</p>
+          <h2 id="staff-title">สำหรับพนักงานรับออร์เดอร์</h2>
+          <p>บันทึกรายการให้ถูกโต๊ะ ตรวจสอบก่อนส่ง และยืนยันว่าออร์เดอร์เข้าครัวแล้ว</p>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>2.1 เข้าสู่ระบบ POS</h3>
+        <ol class="steps">
+          <li>เปิดลิงก์ระบบที่เจ้าของร้านแจ้งให้ แล้วไปยังหน้าเข้าสู่ระบบ</li>
+          <li>กรอกชื่อผู้ใช้และรหัสผ่านที่ได้รับ ตรวจสอบว่าใช้บัญชีพนักงานรับออร์เดอร์</li>
+          <li>เข้าสู่หน้าคีย์ออร์เดอร์ของร้าน หากเข้าสู่ระบบไม่ได้ ให้ตรวจการพิมพ์ชื่อผู้ใช้/รหัสผ่าน หรือติดต่อเจ้าของร้านเพื่อรีเซ็ตรหัสผ่าน</li>
+        </ol>
+      </div>
+
+      <div class="section">
+        <h3>2.2 รับออร์เดอร์ลูกค้าที่โต๊ะ</h3>
+        <ol class="steps">
+          <li>ถามและยืนยันหมายเลขโต๊ะกับลูกค้าก่อนเริ่มบันทึกรายการ หากเป็นออร์เดอร์กลับบ้าน ให้เลือกประเภทออร์เดอร์กลับบ้านแทน</li>
+          <li>เลือกเมนูและจำนวนตามที่ลูกค้าสั่ง ระบุตัวเลือกหรือหมายเหตุเพิ่มเติมในช่องที่ระบบมีให้</li>
+          <li>ทวนรายการ จำนวน และโต๊ะกับลูกค้า ตรวจยอดรวมก่อนส่ง</li>
+          <li>กด <strong>ส่งออร์เดอร์เข้าครัว</strong> หน้าจอจะแสดงข้อความยืนยันเมื่อส่งสำเร็จ พร้อมเลขออร์เดอร์</li>
+          <li>หากยังไม่เห็นข้อความยืนยัน ให้ตรวจรายการก่อนส่งซ้ำ เพื่อป้องกันออร์เดอร์ซ้ำ และแจ้งเจ้าของร้านหากพบปัญหา</li>
+        </ol>
+        <div class="card card-blue">
+          <strong>เคล็ดลับ:</strong>
+          <ul class="checklist">
+            <li>เลือกโต๊ะให้ตรงกับลูกค้าทุกครั้ง</li>
+            <li>อย่ากดส่งซ้ำเมื่อระบบกำลังประมวลผล</li>
+            <li>แจ้งเลขออร์เดอร์ให้ทีมครัวหรือผู้เกี่ยวข้องเมื่อจำเป็น</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>2.3 เช็กลิสต์ก่อนส่งออร์เดอร์</h3>
+        <div class="card">
+          <ul class="checklist">
+            <li>ประเภทออร์เดอร์ถูกต้อง: รับประทานที่ร้านหรือกลับบ้าน</li>
+            <li>หมายเลขโต๊ะตรงกับโต๊ะของลูกค้า (กรณีรับประทานที่ร้าน)</li>
+            <li>รายการอาหาร จำนวน และตัวเลือกตรงตามที่ลูกค้าสั่ง</li>
+            <li>ตรวจยอดรวมและหมายเหตุ ก่อนกดส่งเข้าครัว</li>
+            <li>ได้รับข้อความยืนยันการส่งและเลขออร์เดอร์</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="chapter" id="kitchen" aria-labelledby="kitchen-title">
+      <div class="chapter-heading">
+        <span class="chapter-number">3</span>
+        <div>
+          <p class="eyebrow">Kitchen Display System · KDS</p>
+          <h2 id="kitchen-title">สำหรับพ่อครัว / หน้าจอห้องครัว</h2>
+          <p>ติดตามออร์เดอร์ที่เข้ามาแบบอัตโนมัติ และอัปเดตสถานะให้ทีมหน้าร้านทราบ</p>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>3.1 ล็อกอินเข้าหน้าจอ KDS</h3>
+        <ol class="steps">
+          <li>เปิดลิงก์ระบบที่เจ้าของร้านแจ้ง แล้วเข้าสู่ระบบด้วยชื่อผู้ใช้และรหัสผ่านสำหรับพ่อครัว/ครัว</li>
+          <li>ตรวจชื่อร้านที่แสดงบนหน้า <strong>Kitchen Display System</strong> ให้แน่ใจว่าเป็นร้านที่ถูกต้อง</li>
+          <li>เปิดหน้านี้ค้างไว้บนจอครัว หากต้องการให้เห็นชัดขึ้น สามารถกด <strong>เต็มหน้าจอ</strong></li>
+          <li>หากต้องการเสียงเตือนเมื่อมีออร์เดอร์ใหม่ ให้กด <strong>เปิดเสียงแจ้งเตือน</strong> และอนุญาตเสียงจากเบราว์เซอร์หากมีข้อความถาม</li>
+        </ol>
+      </div>
+
+      <div class="section">
+        <h3>3.2 ดูรายการอาหารแบบ Real-time</h3>
+        <ul class="bullets">
+          <li>ออร์เดอร์ใหม่จะแสดงบนหน้าจอโดยอัตโนมัติ ไม่จำเป็นต้องรีเฟรชหน้าเอง</li>
+          <li>ตรวจเลขออร์เดอร์ หมายเลขโต๊ะหรือประเภทออร์เดอร์ และรายการอาหารพร้อมจำนวน/หมายเหตุ</li>
+          <li>สังเกตสถานะการเชื่อมต่อบนแถบด้านบน หากขึ้นแจ้งว่าเชื่อมต่อขัดข้อง ให้ตรวจอินเทอร์เน็ตและรอระบบลองเชื่อมต่อใหม่</li>
+          <li>เมื่อไม่มีออร์เดอร์ค้าง หน้าจอจะแสดงข้อความว่าไม่มีออร์เดอร์ค้าง ออร์เดอร์ใหม่จะแสดงเมื่อเข้ามา</li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <h3>3.3 เปลี่ยนสถานะอาหาร</h3>
+        <ol class="steps">
+          <li>เมื่อเริ่มลงมือทำ ให้เปิดออร์เดอร์และกดปุ่มสถานะ <strong>กำลังทำ</strong> สำหรับรายการหรือออร์เดอร์ที่ระบบให้จัดการ</li>
+          <li>ทำอาหารตามรายการและหมายเหตุที่แสดง ตรวจความครบถ้วนก่อนส่งออกจากครัว</li>
+          <li>เมื่ออาหารในออร์เดอร์พร้อมแล้ว กด <strong>เสร็จแล้ว</strong> เพื่อแจ้งทีมหน้าร้านว่าพร้อมเสิร์ฟ</li>
+          <li>ตรวจรายการที่ยังค้างบนหน้าจอต่อไป และดำเนินการกับออร์เดอร์ใหม่ตามลำดับงานของร้าน</li>
+        </ol>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>สถานะบนหน้าจอ</th><th>ควรกดเมื่อ</th><th>ความหมายต่อทีม</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><span class="pill">กำลังทำ</span></td><td>ครัวเริ่มเตรียมอาหารแล้ว</td><td>ทีมทราบว่าออร์เดอร์อยู่ระหว่างทำ</td></tr>
+              <tr><td><span class="pill">เสร็จแล้ว</span></td><td>อาหารพร้อมส่งให้ลูกค้าหรือทีมเสิร์ฟ</td><td>ออร์เดอร์พร้อมเสิร์ฟ</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>3.4 ปิดงานอย่างถูกต้อง</h3>
+        <div class="card">
+          <ul class="checklist">
+            <li>กดเปลี่ยนสถานะตามงานจริง ไม่กดเสร็จก่อนอาหารพร้อม</li>
+            <li>แจ้งหน้าร้านเมื่อพบรายการไม่ชัดเจนหรือมีข้อจำกัดด้านวัตถุดิบ</li>
+            <li>ก่อนออกจากอุปกรณ์ ให้กด <strong>ออกจากระบบครัว</strong> เพื่อป้องกันผู้อื่นเข้าใช้งานบัญชี</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <footer class="credit">
+      <h2>ผู้พัฒนา</h2>
+      <p><strong>Mr. Pongsawat Sappasorn (สิบเอกพงษ์สวัสดิ์ สรรพสอน)</strong></p>
+      <p>อีเมล: <a href="mailto:conner5000@gmail.com">conner5000@gmail.com</a></p>
+      <p>เบอร์โทรศัพท์: <a href="tel:0871279359">087-1279359</a></p>
+      <p class="endmark">Smart Restaurant POS System · คู่มือการใช้งาน</p>
+    </footer>
+  </main>
+</body>
+</html>

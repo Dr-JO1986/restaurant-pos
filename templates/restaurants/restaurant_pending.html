@@ -16,7 +16,20 @@
             ร้าน <strong>{{ restaurant.name }}</strong> อยู่ระหว่างรออนุมัติการใช้งาน
             ขณะนี้ยังไม่สามารถเข้าใช้งานระบบ POS ได้
         </p>
-        <p class="mt-2 text-sm text-slate-600">กรุณาติดต่อแอดมินผ่าน LINE OA เพื่อตรวจสอบสถานะการสมัครหรือการชำระเงิน</p>
+        <p>กรุณาแจ้งสแกน QR Code นี้เพื่อติดต่อแอดมินผ่าน LINE :</p>
+    
+    <!-- แท็กแสดงรูปภาพ QR Code -->
+        <div style="margin: 10px 0;">
+            <img src="https://res.cloudinary.com/begsejsl/image/upload/v1792292782/L_gainfriends_2dbarcodes_GW.png" alt="Line QR Code" style="width: 140px; height: 140px; border-radius: 8px; border: 1px solid #ddd;">
+        </div>
+        
+            <p style="margin: 5px 0; font-size: 14px; color: #555;">หรือติดต่อผ่านอีเมลและเบอร์โทรด้านล่าง</p>
+            <p>
+                <a href="mailto:conner5000@gmail.com?subject=สอบถามสถานะการสมัครใช้งาน%20Smart%20Restaurant%20POS" 
+                style="display: inline-block; background-color: #0f172a; color: #ffffff; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: bold; margin-top: 5px;">
+                📧 ส่งอีเมลหาแอดมินคลิกที่นี่ conner5000@gmail.com</a>
+            </p>
+            <p style="margin: 3px 0;">📞 <strong>เบอร์โทรศัพท์:</strong> 0871279359</p>
         <form method="post" action="{% url 'merchant_logout' %}" class="mt-6">
             {% csrf_token %}
             <button type="submit" class="rounded-lg bg-slate-800 px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-900">
