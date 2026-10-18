@@ -316,7 +316,13 @@ class OnlinePickupOrderTests(TestCase):
         self.assertFalse(restaurant.is_active)
         self.assertFalse(user.is_staff)
         self.assertFalse(user.is_superuser)
-        self.assertContains(self.client.get(reverse('restaurant_pending')), 'อยู่ระหว่างรอตรวจสอบ')
+        pending_response = self.client.get(reverse('restaurant_pending'))
+        self.assertContains(pending_response, 'อยู่ระหว่างรอตรวจสอบ')
+        self.assertContains(
+            pending_response,
+            'https://mail.google.com/mail/?view=cm&amp;fs=1&amp;to=conner5000%40gmail.com',
+        )
+        self.assertContains(pending_response, 'mailto:conner5000@gmail.com?subject=')
         self.assertRedirects(
             self.client.get(reverse('staff_order_screen', args=[restaurant.slug])),
             reverse('restaurant_pending'),

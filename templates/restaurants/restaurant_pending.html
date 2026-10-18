@@ -19,16 +19,22 @@
         <p>กรุณาแจ้งสแกน QR Code นี้เพื่อติดต่อแอดมินผ่าน LINE :</p>
     
     <!-- แท็กแสดงรูปภาพ QR Code -->
-        <div style="margin: 10px 0;">
+        <div style="margin: 10px 0;" align="center">
             <img src="https://res.cloudinary.com/begsejsl/image/upload/v1792292782/L_gainfriends_2dbarcodes_GW.png" alt="Line QR Code" style="width: 140px; height: 140px; border-radius: 8px; border: 1px solid #ddd;">
         </div>
         
             <p style="margin: 5px 0; font-size: 14px; color: #555;">หรือติดต่อผ่านอีเมลและเบอร์โทรด้านล่าง</p>
+            {% with email_subject="สอบถามสถานะการสมัครใช้งาน Smart Restaurant POS" %}
             <p>
-                <a href="mailto:conner5000@gmail.com?subject=สอบถามสถานะการสมัครใช้งาน%20Smart%20Restaurant%20POS" 
+                <a href="https://mail.google.com/mail/?view=cm&amp;fs=1&amp;to=conner5000%40gmail.com&amp;su={{ email_subject|urlencode }}"
+                target="_blank" rel="noopener noreferrer"
                 style="display: inline-block; background-color: #0f172a; color: #ffffff; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: bold; margin-top: 5px;">
-                📧 ส่งอีเมลหาแอดมินคลิกที่นี่ conner5000@gmail.com</a>
+                📧 เขียนอีเมลถึงแอดมินผ่าน Gmail</a>
             </p>
+            <p style="margin: 5px 0; font-size: 13px;">
+                หรือ <a href="mailto:conner5000@gmail.com?subject={{ email_subject|urlencode }}">เปิดแอปอีเมล</a>
+            </p>
+            {% endwith %}
             <p style="margin: 3px 0;">📞 <strong>เบอร์โทรศัพท์:</strong> 0871279359</p>
         <form method="post" action="{% url 'merchant_logout' %}" class="mt-6">
             {% csrf_token %}
